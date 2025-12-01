@@ -1,0 +1,213 @@
+# Simple explanations for input and output values.
+# Can use for developer reference or in-app tooltips/explanations.
+
+[definitions.en.vector_components]
+x = """
+Forward value inside any three-number (x, y, z) triple.
+It uses the same units as its parent field to show downrange distance or speed.
+X starts at the location of impact and increasing toward the target along the aim line.
+"""
+
+y = """
+Sideways value inside any three-number (x, y, z) triple.
+Positive y means right of target and negative means left.
+Y starts at the location of impact and increasing right of target along the true level plane.
+"""
+
+z = """
+Up-and-down value inside any three-number (x, y, z) triple.
+Positive z is above the ground and negative z is below it.
+"""
+
+[definitions.en.inputs]
+ball_speed_meters_per_second = """
+How fast the golf ball flies right after impact, measured in meters per second.
+A higher number usually means a stronger strike.
+"""
+
+horizontal_launch_angle_degrees = """
+Shows if the ball starts left or right of the target, measured in degrees.
+Negative is left, positive is right.
+"""
+
+vertical_launch_angle_degrees = """
+Tells how high the ball leaves the club, measured in degrees above the ground.
+Higher launch angles make the ball climb faster.
+"""
+
+spin_axis_degrees = """
+The tilt of the ball’s spin that makes it hook or slice, measured in degrees.
+Zero means no curve, while a big tilt bends the shot.
+Negative is draw/hook spin (ball curves left), positive is fade/slice spin (ball curves right).
+"""
+
+total_spin_rpm = """
+Total amount the ball spins per minute.
+More spin can add height or curve depending on the tilt.
+"""
+
+[definitions.en.clubhead_values]
+club_speed_meters_per_second = """
+Speed of the club head at impact, measured in meters per second.
+More club speed usually means more potential distance.
+"""
+
+club_face_to_path_degrees = """
+Difference between where the club face points and the swing path line, measured in degrees.
+Helps explain why a shot curves left or right after impact.
+Face to path causes sidespin/spin axis.
+"""
+
+club_face_to_target_degrees = """
+Degrees between the club face direction and the target line.
+It shows if the face was open or closed when you hit the ball.
+Negative is closed (pointing left), positive is open (pointing right).
+Face to target determines initial ball direction.
+"""
+
+club_path_degrees = """
+Direction the club head travels through impact, in degrees left or right.
+Negative is club moving to the left (Outside-In), positive is to the right (Inside-Out).
+"""
+
+smash_factor = """
+Ratio of ball speed to club speed.
+Higher numbers mean you transferred energy to the ball more efficiently.
+A good value is 1.4x, the rules of golf forbid more than 1.5x.
+"""
+
+optimal_maximum_distance_yards = """
+Theoretical maximum carry distance for this club speed, in yards.
+Calculated as 2.4 yards per mph of club speed under ideal conditions.
+Used to calculate distance efficiency percentage.
+"""
+
+distance_efficiency_percent = """
+How much this shot's ball speed achieved of the furthest possible distance under ideal conditions.
+Note that launch angles and spin dramatically change carry and total distance.
+For driver, you'd like to see 100%.
+For irons and wedges, try to maintain a consistent value that should not be 100% because of VLA and spin.
+"""
+
+[definitions.en.trajectory_derived_values]
+backspin_rpm = """
+Backward spin per minute that helps the ball climb and stop.
+Too little backspin can make shots fall out of the sky.
+Too much backspin causes ballooning shots.
+"""
+
+sidespin_rpm = """
+Sideways spin per minute that makes the ball hook, draw, face, or slice.
+Negative sidespin means the ball curves left, positive means it curves right.
+"""
+
+carry_distance_meters = """
+Distance the ball flies through the air before first landing, in meters.
+It is the part of the shot that clears hazards or sticks on the green.
+"""
+
+total_distance_meters = """
+Entire distance the ball travels including roll, in meters.
+This tells you how far the ball finished from the tee.
+You want more total distance on drives, you want this to match carry for approach and wedge shots.
+"""
+
+hang_time_seconds = """
+Number of seconds the ball stays in the air.
+Longer hang time usually means a higher, softer shot.
+"""
+
+descent_angle_degrees = """
+Angle of the ball’s path as it comes down, measured in degrees.
+Steeper angles help the ball stop faster after landing.
+"""
+
+peak_height_meters = """
+Highest point of the ball’s flight, in meters.
+It helps you know if the shot can clear trees or bunkers.
+Most golfers have similar peak heights for all clubs, roughly their driver swing speed in feet.
+"""
+
+landing_position = """
+Three-number landing spot showing downrange distance, sideways distance, and height.
+Use it to plot exactly where the ball first hits the ground.
+"""
+
+landing_velocity = """
+Three-number landing speed that covers forward, sideways, and up-or-down motion.
+It explains how hot or soft the ball is moving on impact with the turf.
+"""
+
+offline_distance_meters = """
+How far left or right the ball finishes from the target line, in meters.
+Large numbers mean the shot missed the fairway line by a lot.
+"""
+
+[definitions.en.environment_settings]
+elevation_meters = """
+Course height above or below sea level, in meters.
+Thinner air at higher elevations makes the ball fly farther.
+"""
+
+humidity_percent = """
+Moisture level in the air shown as a percent.
+Sticky air can slightly slow the ball.
+"""
+
+pressure_pascals = """
+Air pressure used for the shot, measured in Pascals.
+Lower pressure means thinner air and longer carries.
+"""
+
+temperature_kelvin = """
+Air temperature for the shot, measured in Kelvin.
+Warmer air can help the ball travel farther.
+"""
+
+[definitions.en.us_customary_units]
+us_customary_units = """
+Bundle of the same shot details converted to U.S. customary units.
+Use it when your app or golfer prefers miles per hour and yards.
+"""
+
+ball_speed_mph = """
+Ball speed at launch measured in miles per hour.
+It pairs with the metric ball speed so anyone can read the data.
+"""
+
+carry_distance_yards = """
+Distance the ball flies through the air before first landing, in yards.
+It is the part of the shot that clears hazards or sticks on the green.
+"""
+
+club_speed_mph = """
+Speed of the club head at impact, measured in miles per hour.
+More club speed usually means more potential distance.
+"""
+
+landing_position_yards = """
+Three-number landing spot reported in yards.
+It mirrors the metric landing position but in familiar units.
+"""
+
+landing_velocity_mph = """
+Three-number landing speed given in miles per hour.
+It shows how fast the ball is moving as it hits the ground.
+"""
+
+offline_distance_yards = """
+How far left or right the ball finishes from the target line, in yards.
+It equals the metric offline value converted to yards.
+"""
+
+peak_height_yards = """
+Highest point of the ball’s flight, in meters.
+It helps you know if the shot can clear trees or bunkers.
+Most golfers have similar peak heights for all clubs, roughly their driver swing speed in feet.
+"""
+
+total_distance_yards = """
+Entire distance the ball travels including roll, in yards.
+This tells you how far the ball finished from the tee.
+You want more total distance on drives, you want this to match carry for approach and wedge shots.
+"""

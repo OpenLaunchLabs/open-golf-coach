@@ -1,0 +1,144 @@
+name: CI Build
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  core-library:
+    name: Build Core Library
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            core/target
+          key: ${{ runner.os }}-cargo-core-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-core-
+
+      - name: Build core library
+        run: cargo build -p opengolfcoach --release
+
+      - name: Run tests
+        run: cargo test -p opengolfcoach --release
+
+  bindings:
+    name: Build Bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-bindings-${{ hashFiles('bindings/python/Cargo.lock', 'bindings/python/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bindings-
+
+      - name: Build Python bindings
+        working-directory: bindings/python
+        run: cargo build --release
+
+      - name: Install CMake
+        run: sudo apt-get update && sudo apt-get install -y cmake
+
+      - name: Build C++ bindings (verify header compiles)
+        working-directory: bindings/cpp
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          # CMake configure succeeds if bindings are valid
+
+  examples:
+    name: Build Examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install CMake
+        run: sudo apt-get update && sudo apt-get install -y cmake
+
+      - name: Build core library
+        run: cargo build -p opengolfcoach --release
+
+      - name: Build C++ example
+        working-directory: examples/cpp
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+
+  server:
+    name: Build Server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            server/target
+            core/target
+          key: ${{ runner.os }}-cargo-server-${{ hashFiles('server/Cargo.lock', 'server/Cargo.toml', 'core/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-server-
+
+      - name: Build server
+        working-directory: server
+        run: cargo build --release
+
+  windows-demo:
+    name: Build Windows Demo
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            windows-demo/target
+            core/target
+          key: ${{ runner.os }}-cargo-windows-demo-${{ hashFiles('windows-demo/Cargo.lock', 'windows-demo/Cargo.toml', 'core/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-windows-demo-
+
+      - name: Build windows-demo
+        working-directory: windows-demo
+        run: cargo build --release

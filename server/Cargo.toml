@@ -1,0 +1,20 @@
+[package]
+name = "opengolfcoach-server"
+description = "TCP socket server for OpenGolfCoach golf shot calculations"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
+
+[dependencies]
+opengolfcoach = { path = "../core" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

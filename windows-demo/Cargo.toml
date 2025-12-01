@@ -1,0 +1,21 @@
+[package]
+name = "opengolfcoach-windows-demo"
+description = "Windows demo application for OpenGolfCoach with TCP server and GUI"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+opengolfcoach = { path = "../core" }
+eframe = "0.29"
+egui = "0.29"
+serde_json = "1.0"
+tokio = { version = "1.42", features = ["full"] }
+chrono = "0.4"
+toml = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+
+# Windows-specific configuration for portable executable
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = "0.3", features = ["wincon", "winuser"] }

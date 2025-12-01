@@ -1,0 +1,198 @@
+[shots.en.baby_pull_fade]
+description = """
+A baby pull fade launches left of the flag, then floats back toward center with only a couple yards of curve.
+It is a safe scoring shot when trouble lurks short-right but you still want the ball to fall softly.
+"""
+coaching_tip = """
+Nice shot!
+"""
+
+[shots.en.baby_push_draw]
+description = """
+A baby push draw begins just right of target and curls back gently to the center line.
+It carries high with a touch of extra roll and rarely over-cooks into a hook.
+"""
+coaching_tip = """
+Nice shot!
+"""
+
+[shots.en.left_shank]
+description = """
+A left shank rockets hard to the left - it feels like 90 degrees off target.
+Contact happens off the heel or hosel, sending the ball sharply offline.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.right_shank]
+description = """
+A right shank shoots hard to the right - it feels like 90 degrees off target.
+Contact happens off the hosel, sending the ball sharply offline into trouble.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.duck_hook]
+description = """
+A duck hook is a low, diving shot that starts on line or slightly right before violently snapping left.
+The extreme spin axis causes the ball to lose altitude quickly and run hard into left-side trouble.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.banana_slice]
+description = """
+A banana slice is a high, weak shot that balloons up and peels dramatically to the right.
+The extreme sidespin robs distance and sends the ball curving far off target like a boomerang.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.worm_burner]
+description = """
+A worm burner is a hard-hit low shot that stays just above the ground, skimming the turf like it's hunting worms.
+Often the result of a thin strike with higher clubhead speed.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.pull]
+description = """
+A pull launches left of target with no curve, flying in a straight line to the left.
+The ball starts left and stays left without any sidespin to bring it back.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.pull_draw]
+description = """
+A pull draw launches left of the target and turns even farther left with a strong, rolling flight.
+It travels long but can run out quickly into left trouble.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.pull_fade]
+description = """
+A pull fade begins left of the flag yet curves back toward the fairway or green, often finishing near center.
+It climbs high and lands soft, but the start line still risks left hazards.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.pull_hook]
+description = """
+A pull hook fires left and dives even farther left with heavy topspin and very little stopping power.
+It is the classic double-cross that overcooks quickly into trees or hazards.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.pull_slice]
+description = """
+A pull slice starts left but carves way across the sky to the right with lots of sidespin.
+It often loses distance, ballooning high before falling weakly right.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.straight]
+description = """
+A straight shot launches on the intended line and holds it with zero curve.
+Straight shots are not typically considered repeatable as they can result in two different misses.
+Many players typically prefer a slight draw or fade for better miss control.
+"""
+coaching_tip = """
+Nice shot!
+"""
+
+[shots.en.straight_draw]
+description = """
+A straight draw launches at the target and curves gently left with a penetrating flight.
+It is a tour-quality shot that maximizes distance with controlled draw spin.
+"""
+coaching_tip = """
+Nice shot!
+"""
+
+[shots.en.straight_fade]
+description = """
+A straight fade launches at the target and drifts softly right with a high, soft-landing flight.
+It is a reliable shot that holds greens and provides excellent distance control.
+"""
+coaching_tip = """
+Nice shot!
+"""
+
+[shots.en.straight_hook]
+description = """
+A straight hook starts on target but dives hard left with extreme sidespin.
+The ball quickly loses height and runs out into left-side trouble.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.straight_slice]
+description = """
+A straight slice starts on target but peels dramatically to the right with heavy sidespin.
+It balloons high, loses distance, and drifts weakly into right-side trouble.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.push]
+description = """
+A push launches right of target with no curve, flying in a straight line to the right.
+The ball starts right and stays right without any sidespin to bring it back.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.push_draw]
+description = """
+A push draw begins right of target and bends back strongly, sometimes crossing into the left rough.
+It is powerful but can over-curve if the face slams shut.
+"""
+coaching_tip = """
+Nice shot!
+"""
+
+[shots.en.push_fade]
+description = """
+A push fade launches right and keeps drifting farther right with a peeling, high flight.
+It is reliable when aiming away from danger but leaks significant distance.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.push_hook]
+description = """
+A push hook starts out to the right before ripping back left with a violent curve.
+It can travel miles but rarely holds a fairway or green.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""
+
+[shots.en.push_slice]
+description = """
+A push slice leaves the face wide open, starting right and curving even farther right like a boomerang.
+It is the classic high, weak miss that costs both distance and accuracy.
+"""
+coaching_tip = """
+Find a coach and improve your game at https://www.mytpi.com/experts
+"""

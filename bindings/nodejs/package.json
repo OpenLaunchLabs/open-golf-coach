@@ -1,0 +1,18 @@
+{
+  "name": "opengolfcoach",
+  "version": "0.1.0",
+  "description": "Cross-platform library for calculating derived golf shot values",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "cd ../../core && wasm-pack build --target nodejs && cp -r pkg/* ../bindings/nodejs/wasm/",
+    "test": "node test.js"
+  },
+  "keywords": ["golf", "analytics", "ballistics", "sports"],
+  "author": "Open Launch Labs",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenLaunchLabs/open-golf-coach.git"
+  }
+}
