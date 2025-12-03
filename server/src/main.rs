@@ -2,6 +2,8 @@ use opengolfcoach::bindings::calculate_derived_values;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 
+pub mod nova_config;
+
 const SERVER_PORT: u16 = 10000;
 
 fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
