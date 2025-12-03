@@ -187,6 +187,29 @@ make
 1. Copy `bindings/unreal/` to your project's `Source/ThirdParty/` folder
 2. See `examples/unreal/GolfShotComponent.h` for usage
 
+## Nova Integration (Auto-Discover & Bridge)
+
+OpenGolfCoach can now auto-discover a Nova launch monitor on the local network and stream its OpenAPI shots through the library. SSDP is the default discovery method (with mDNS fallback), and you can also force mDNS or use manual host/port overrides.
+
+### Run the Nova bridge (Rust)
+
+```bash
+# Default: SSDP discovery, reconnect on drop, rebroadcast enriched shots on port 10000
+cargo run -p opengolfcoach-server --bin nova_bridge -- --output-port=10000
+
+# Force mDNS discovery
+cargo run -p opengolfcoach-server --bin nova_bridge -- --discovery=mdns --output-port=10000
+
+# Manual host/port (skip discovery)
+cargo run -p opengolfcoach-server --bin nova_bridge -- --discovery=manual --nova-host=192.168.1.50 --nova-port=2921 --output-port=10000
+```
+
+What it does:
+- Discovers Nova (SSDP by default) and connects to its OpenAPI TCP stream.
+- Maps Nova JSON (`BallData.Speed`, `VLA`, `HLA`, `TotalSpin`, `SpinAxis`, etc.) into the OpenGolfCoach input schema.
+- Runs `calculate_derived_values` for every shot.
+- Optionally rebroadcasts enriched shots on a local TCP port (e.g., `--output-port=10000`) so existing listeners keep working. If you prefer the legacy behavior, the original servers on ports 10000/921 remain unchanged.
+
 ## API Reference
 
 ### Core Functions

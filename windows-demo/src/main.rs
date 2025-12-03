@@ -1,14 +1,20 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+
 use eframe::egui;
 use opengolfcoach::bindings::calculate_derived_values;
-use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::collections::HashMap;
-use tokio::io::AsyncWriteExt;
+use opengolfcoach_server::nova::{
+    discover_nova_openapi, map_nova_shot_to_ogc, DiscoveryMethod, NovaEndpoint,
+};
+use serde::Deserialize;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
-use serde::Deserialize;
+use tokio::time::sleep;
+use std::time::Duration;
 
 const SERVER_PORT: u16 = 10000;
 const OPENAPI_PORT: u16 = 921;
@@ -139,10 +145,40 @@ impl Default for ShotResult {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NovaDiscoveryChoice {
+    Ssdp,
+    Mdns,
+    Manual,
+}
+
+#[derive(Clone)]
+struct NovaSettings {
+    discovery: NovaDiscoveryChoice,
+    host: String,
+    port: u16,
+    discovery_timeout_secs: u64,
+    reconnect_delay_secs: u64,
+}
+
+impl Default for NovaSettings {
+    fn default() -> Self {
+        Self {
+            discovery: NovaDiscoveryChoice::Ssdp,
+            host: String::new(),
+            port: 2921,
+            discovery_timeout_secs: 5,
+            reconnect_delay_secs: 3,
+        }
+    }
+}
+
 struct OpenGolfCoachApp {
     latest_result: Arc<Mutex<ShotResult>>,
     _runtime: Arc<Runtime>, // Keep runtime alive for background tasks
     server_status: Arc<Mutex<String>>,
+    nova_status: Arc<Mutex<String>>,
+    nova_settings: Arc<Mutex<NovaSettings>>,
     shot_tooltips: HashMap<String, String>,
     definition_tooltips: HashMap<String, String>,
     is_left_handed: Arc<AtomicBool>,
@@ -154,6 +190,8 @@ impl OpenGolfCoachApp {
         let runtime = Arc::new(Runtime::new().expect("Failed to create Tokio runtime"));
         let latest_result = Arc::new(Mutex::new(ShotResult::default()));
         let server_status = Arc::new(Mutex::new("Starting...".to_string()));
+        let nova_status = Arc::new(Mutex::new("Nova: idle".to_string()));
+        let nova_settings = Arc::new(Mutex::new(NovaSettings::default()));
         let is_left_handed = Arc::new(AtomicBool::new(false)); // Default to right-handed
 
         // Start original TCP server in background (port 10000)
@@ -174,6 +212,15 @@ impl OpenGolfCoachApp {
             Self::run_openapi_server(latest_result_clone2, server_status_clone2, is_left_handed_clone2).await;
         });
 
+        // Start Nova discovery/connection loop in background
+        let latest_result_clone3 = Arc::clone(&latest_result);
+        let nova_status_clone = Arc::clone(&nova_status);
+        let nova_settings_clone = Arc::clone(&nova_settings);
+        let is_left_handed_clone3 = Arc::clone(&is_left_handed);
+        runtime.spawn(async move {
+            Self::run_nova_client(latest_result_clone3, nova_status_clone, nova_settings_clone, is_left_handed_clone3).await;
+        });
+
         let runtime_clone = Arc::clone(&runtime);
 
         // Load tooltips
@@ -184,6 +231,8 @@ impl OpenGolfCoachApp {
             latest_result,
             _runtime: runtime_clone,
             server_status,
+            nova_status,
+            nova_settings,
             shot_tooltips,
             definition_tooltips,
             is_left_handed,
@@ -666,6 +715,261 @@ impl OpenGolfCoachApp {
         }
     }
 
+    // Nova discovery + OpenAPI client (SSDP by default, optional mDNS/manual)
+    async fn run_nova_client(
+        latest_result: Arc<Mutex<ShotResult>>,
+        nova_status: Arc<Mutex<String>>,
+        nova_settings: Arc<Mutex<NovaSettings>>,
+        is_left_handed: Arc<AtomicBool>,
+    ) {
+        loop {
+            let settings_snapshot = nova_settings.lock().unwrap().clone();
+            let reconnect_delay = settings_snapshot.reconnect_delay_secs;
+
+            *nova_status.lock().unwrap() = match settings_snapshot.discovery {
+                NovaDiscoveryChoice::Ssdp => "Nova: Discovering via SSDP...".to_string(),
+                NovaDiscoveryChoice::Mdns => "Nova: Discovering via mDNS...".to_string(),
+                NovaDiscoveryChoice::Manual => format!(
+                    "Nova: Using manual endpoint {}:{}",
+                    settings_snapshot.host, settings_snapshot.port
+                ),
+            };
+
+            let endpoint = match Self::resolve_nova_endpoint(&settings_snapshot) {
+                Ok(ep) => {
+                    *nova_status.lock().unwrap() =
+                        format!("Nova: found at {}:{}", ep.host, ep.port);
+                    ep
+                }
+                Err(e) => {
+                    *nova_status.lock().unwrap() =
+                        format!("Nova: discovery failed ({e}), retrying...");
+                    sleep(Duration::from_secs(reconnect_delay)).await;
+                    continue;
+                }
+            };
+
+            let addr = format!("{}:{}", endpoint.host, endpoint.port);
+            match tokio::net::TcpStream::connect(&addr).await {
+                Ok(stream) => {
+                    *nova_status.lock().unwrap() =
+                        format!("Nova: connected to {}", addr);
+                    if let Err(e) = Self::handle_nova_stream(
+                        stream,
+                        latest_result.clone(),
+                        nova_status.clone(),
+                        &is_left_handed,
+                    )
+                    .await
+                    {
+                        *nova_status.lock().unwrap() =
+                            format!("Nova: connection dropped ({e})");
+                    }
+                }
+                Err(e) => {
+                    *nova_status.lock().unwrap() =
+                        format!("Nova: failed to connect to {} ({e})", addr);
+                }
+            }
+
+            *nova_status.lock().unwrap() =
+                format!("Nova: retrying in {}s...", reconnect_delay);
+            sleep(Duration::from_secs(reconnect_delay)).await;
+        }
+    }
+
+    fn resolve_nova_endpoint(settings: &NovaSettings) -> Result<NovaEndpoint, String> {
+        match settings.discovery {
+            NovaDiscoveryChoice::Manual => {
+                if settings.host.trim().is_empty() {
+                    return Err("manual host is empty".to_string());
+                }
+                Ok(NovaEndpoint {
+                    host: settings.host.clone(),
+                    port: settings.port,
+                })
+            }
+            NovaDiscoveryChoice::Ssdp => discover_nova_openapi(
+                DiscoveryMethod::Ssdp,
+                Duration::from_secs(settings.discovery_timeout_secs),
+            )
+            .or_else(|e| {
+                // Try mDNS as fallback
+                eprintln!("SSDP discovery failed ({e}); trying mDNS...");
+                discover_nova_openapi(
+                    DiscoveryMethod::Mdns,
+                    Duration::from_secs(settings.discovery_timeout_secs),
+                )
+            }),
+            NovaDiscoveryChoice::Mdns => discover_nova_openapi(
+                DiscoveryMethod::Mdns,
+                Duration::from_secs(settings.discovery_timeout_secs),
+            ),
+        }
+    }
+
+    async fn handle_nova_stream(
+        stream: tokio::net::TcpStream,
+        latest_result: Arc<Mutex<ShotResult>>,
+        nova_status: Arc<Mutex<String>>,
+        is_left_handed: &Arc<AtomicBool>,
+    ) -> Result<(), String> {
+        let mut reader = BufReader::new(stream);
+        let mut line = String::new();
+
+        loop {
+            line.clear();
+            let read = reader
+                .read_line(&mut line)
+                .await
+                .map_err(|e| format!("read error: {e}"))?;
+
+            if read == 0 {
+                return Err("server closed connection".to_string());
+            }
+
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            let raw_json: serde_json::Value = match serde_json::from_str(trimmed) {
+                Ok(v) => v,
+                Err(e) => {
+                    *nova_status.lock().unwrap() =
+                        format!("Nova: bad JSON ({e})");
+                    continue;
+                }
+            };
+
+            let mapped = match map_nova_shot_to_ogc(&raw_json) {
+                Some(v) => v,
+                None => {
+                    *nova_status.lock().unwrap() =
+                        "Nova: unable to map shot; skipping".to_string();
+                    continue;
+                }
+            };
+
+            let mapped_str = match serde_json::to_string(&mapped) {
+                Ok(s) => s,
+                Err(e) => {
+                    *nova_status.lock().unwrap() =
+                        format!("Nova: mapping serialize error ({e})");
+                    continue;
+                }
+            };
+
+            let processed_input = if is_left_handed.load(Ordering::Relaxed) {
+                invert_signs_for_left_handed(&mapped_str)
+            } else {
+                mapped_str
+            };
+
+            let enriched = match calculate_derived_values(&processed_input) {
+                Ok(res) => res,
+                Err(e) => {
+                    *nova_status.lock().unwrap() =
+                        format!("Nova: calculation error ({:?})", e);
+                    continue;
+                }
+            };
+
+            if Self::apply_result_to_latest(&enriched, &latest_result) {
+                *nova_status.lock().unwrap() = "Nova: shot received".to_string();
+            }
+        }
+    }
+
+    fn apply_result_to_latest(result_json: &str, latest_result: &Arc<Mutex<ShotResult>>) -> bool {
+        if let Ok(result) = serde_json::from_str::<serde_json::Value>(result_json) {
+            if let Some(ogc) = result.get("open_golf_coach") {
+                let shot_name = ogc
+                    .get("shot_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown")
+                    .to_string();
+                let shot_rank = ogc
+                    .get("shot_rank")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown")
+                    .to_string();
+                let shot_color_rgb = ogc
+                    .get("shot_color_rgb")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0xFFFFFF")
+                    .to_string();
+
+                let us_units = ogc.get("us_customary_units");
+                let carry_distance_yards = us_units
+                    .and_then(|u| u.get("carry_distance_yards"))
+                    .and_then(|v| v.as_f64());
+                let offline_distance_yards = us_units
+                    .and_then(|u| u.get("offline_distance_yards"))
+                    .and_then(|v| v.as_f64());
+                let total_distance_yards = us_units
+                    .and_then(|u| u.get("total_distance_yards"))
+                    .and_then(|v| v.as_f64());
+                let peak_height_yards = us_units
+                    .and_then(|u| u.get("peak_height_yards"))
+                    .and_then(|v| v.as_f64());
+                let club_speed_mph = us_units
+                    .and_then(|u| u.get("club_speed_mph"))
+                    .and_then(|v| v.as_f64());
+
+                let hang_time_seconds = ogc
+                    .get("hang_time_seconds")
+                    .and_then(|v| v.as_f64());
+                let descent_angle_degrees = ogc
+                    .get("descent_angle_degrees")
+                    .and_then(|v| v.as_f64());
+                let smash_factor = ogc
+                    .get("smash_factor")
+                    .and_then(|v| v.as_f64());
+                let optimal_maximum_distance_meters = ogc
+                    .get("optimal_maximum_distance_meters")
+                    .and_then(|v| v.as_f64());
+                let distance_efficiency_percent = ogc
+                    .get("distance_efficiency_percent")
+                    .and_then(|v| v.as_f64());
+                let club_path_degrees = ogc
+                    .get("club_path_degrees")
+                    .and_then(|v| v.as_f64());
+                let club_face_to_path_degrees = ogc
+                    .get("club_face_to_path_degrees")
+                    .and_then(|v| v.as_f64());
+                let club_face_to_target_degrees = ogc
+                    .get("club_face_to_target_degrees")
+                    .and_then(|v| v.as_f64());
+
+                let now = chrono::Local::now();
+                let timestamp = now.format("%H:%M:%S").to_string();
+
+                *latest_result.lock().unwrap() = ShotResult {
+                    shot_name,
+                    shot_rank,
+                    shot_color_rgb,
+                    timestamp,
+                    carry_distance_yards,
+                    offline_distance_yards,
+                    total_distance_yards,
+                    peak_height_yards,
+                    hang_time_seconds,
+                    descent_angle_degrees,
+                    club_speed_mph,
+                    smash_factor,
+                    optimal_maximum_distance_meters,
+                    distance_efficiency_percent,
+                    club_path_degrees,
+                    club_face_to_path_degrees,
+                    club_face_to_target_degrees,
+                };
+                return true;
+            }
+        }
+        false
+    }
+
     fn render_tile(ui: &mut egui::Ui, label: &str, value: Option<String>, unit: Option<&str>, tooltip: Option<&str>) {
         let response = ui.group(|ui| {
             ui.set_width(180.0);
@@ -811,6 +1115,62 @@ impl eframe::App for OpenGolfCoachApp {
                 ui.label("Server Status:");
                 let status = self.server_status.lock().unwrap().clone();
                 ui.colored_label(egui::Color32::from_rgb(100, 200, 100), status);
+            });
+
+            // Nova status + controls
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                ui.label("Nova Status:");
+                let status = self.nova_status.lock().unwrap().clone();
+                ui.colored_label(egui::Color32::from_rgb(120, 170, 255), status);
+            });
+            ui.add_space(6.0);
+            ui.group(|ui| {
+                ui.label(egui::RichText::new("Nova Connection").strong());
+                ui.add_space(4.0);
+
+                let mut settings = self.nova_settings.lock().unwrap().clone();
+
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut settings.discovery, NovaDiscoveryChoice::Ssdp, "SSDP");
+                    ui.selectable_value(&mut settings.discovery, NovaDiscoveryChoice::Mdns, "mDNS");
+                    ui.selectable_value(&mut settings.discovery, NovaDiscoveryChoice::Manual, "Manual");
+                });
+
+                if matches!(settings.discovery, NovaDiscoveryChoice::Manual) {
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.label("Host:");
+                        ui.text_edit_singleline(&mut settings.host);
+                    });
+                    ui.horizontal(|ui| {
+                    ui.label("Port:");
+                    ui.add(
+                        egui::DragValue::new(&mut settings.port)
+                            .range(1..=65535),
+                    );
+                });
+            }
+
+            ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.label("Discovery timeout (s):");
+                    ui.add(
+                        egui::DragValue::new(&mut settings.discovery_timeout_secs)
+                            .range(1..=30),
+                    );
+                    ui.add_space(10.0);
+                    ui.label("Reconnect delay (s):");
+                    ui.add(
+                        egui::DragValue::new(&mut settings.reconnect_delay_secs)
+                            .range(1..=30),
+                    );
+                });
+
+                ui.add_space(6.0);
+                if ui.button("Apply Nova Settings").clicked() {
+                    *self.nova_settings.lock().unwrap() = settings;
+                }
             });
 
             ui.add_space(10.0);

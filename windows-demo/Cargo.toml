@@ -15,6 +15,7 @@ tokio = { version = "1.42", features = ["full"] }
 chrono = "0.4"
 toml = "0.8"
 serde = { version = "1.0", features = ["derive"] }
+opengolfcoach-server = { path = "../server" }
 
 # Windows-specific configuration for portable executable
 [target.'cfg(target_os = "windows")'.dependencies]

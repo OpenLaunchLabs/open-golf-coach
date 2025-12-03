@@ -11,6 +11,7 @@ A portable Windows application that displays golf shot analysis in real-time via
 - **GUI Display**: Shows `shot_name` and `shot_rank` in a clean, easy-to-read interface
 - **Portable**: Single executable that runs without installation on Windows
 - **Multi-Protocol**: Works with any launch monitor supporting either protocol
+- **Nova Auto-Discovery**: SSDP by default with optional mDNS/manual override in the UI
 
 ## How It Works
 
@@ -76,9 +77,16 @@ opengolfcoach-windows-demo.exe
 
 The GUI window will open showing:
 - Server status (listening on ports 10000 and 921)
+- Nova status (discovery/connection)
 - Latest shot name (large display)
 - Latest shot rank (color-coded by quality)
 - Last update timestamp
+
+### Nova Connection
+
+- By default the app auto-discovers Nova via SSDP and connects to the Nova OpenAPI stream.
+- You can switch to mDNS or provide manual host/port using the **Nova Connection** section in the UI.
+- When connected, Nova shots are mapped into OpenGolfCoach, processed, and displayed just like local TCP inputs.
 
 ### Sending Shot Data
 
