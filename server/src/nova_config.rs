@@ -35,3 +35,63 @@ impl Default for NovaDiscoveryConfig {
         }
     }
 }
+
+/// Errors that can occur while validating a configuration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NovaConfigError {
+    /// Manual mode was selected but no endpoint was provided.
+    MissingManualEndpoint,
+}
+
+impl NovaDiscoveryConfig {
+    /// Ensure the configuration is self-consistent.
+    pub fn validate(&self) -> Result<(), NovaConfigError> {
+        if matches!(self.method, NovaDiscoveryMethod::Manual) && self.manual_endpoint.is_none() {
+            Err(NovaConfigError::MissingManualEndpoint)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_is_ssdp_with_timeouts() {
+        let cfg = NovaDiscoveryConfig::default();
+        assert_eq!(cfg.method, NovaDiscoveryMethod::Ssdp);
+        assert_eq!(cfg.discovery_timeout_secs, 5);
+        assert_eq!(cfg.reconnect_delay_secs, 3);
+        assert!(cfg.manual_endpoint.is_none());
+        assert_eq!(cfg.validate(), Ok(()));
+    }
+
+    #[test]
+    fn manual_requires_endpoint() {
+        let cfg = NovaDiscoveryConfig {
+            method: NovaDiscoveryMethod::Manual,
+            ..Default::default()
+        };
+
+        assert_eq!(
+            cfg.validate(),
+            Err(NovaConfigError::MissingManualEndpoint)
+        );
+    }
+
+    #[test]
+    fn manual_with_endpoint_is_valid() {
+        let cfg = NovaDiscoveryConfig {
+            method: NovaDiscoveryMethod::Manual,
+            manual_endpoint: Some(NovaEndpoint {
+                host: "127.0.0.1".to_string(),
+                port: 2921,
+            }),
+            ..Default::default()
+        };
+
+        assert_eq!(cfg.validate(), Ok(()));
+    }
+}
