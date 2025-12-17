@@ -28,10 +28,10 @@ console.log('\nOutput:');
 console.log(JSON.stringify(result1, null, 2));
 
 console.log('\nDerived values:');
-console.log(`  Carry distance: ${result1.carry_distance_meters.toFixed(2)} meters`);
-console.log(`  Offline distance: ${result1.offline_distance_meters.toFixed(2)} meters`);
-console.log(`  Backspin: ${result1.backspin_rpm.toFixed(1)} RPM`);
-console.log(`  Sidespin: ${result1.sidespin_rpm.toFixed(1)} RPM`);
+console.log(`  Carry distance: ${result1.open_golf_coach.carry_distance_meters.toFixed(2)} meters`);
+console.log(`  Offline distance: ${result1.open_golf_coach.offline_distance_meters.toFixed(2)} meters`);
+console.log(`  Backspin: ${result1.open_golf_coach.backspin_rpm.toFixed(1)} RPM`);
+console.log(`  Sidespin: ${result1.open_golf_coach.sidespin_rpm.toFixed(1)} RPM`);
 
 // Example 2: Shot with backspin and sidespin (calculate total spin and axis)
 console.log('\n\nExample 2: Calculate total spin and spin axis from components');
@@ -54,10 +54,10 @@ console.log('\nOutput:');
 console.log(JSON.stringify(result2, null, 2));
 
 console.log('\nDerived values:');
-console.log(`  Total spin: ${result2.total_spin_rpm.toFixed(1)} RPM`);
-console.log(`  Spin axis: ${result2.spin_axis_degrees.toFixed(2)} degrees`);
-console.log(`  Carry distance: ${result2.carry_distance_meters.toFixed(2)} meters`);
-console.log(`  Offline distance: ${result2.offline_distance_meters.toFixed(2)} meters`);
+console.log(`  Total spin: ${result2.open_golf_coach.total_spin_rpm.toFixed(1)} RPM`);
+console.log(`  Spin axis: ${result2.open_golf_coach.spin_axis_degrees.toFixed(2)} degrees`);
+console.log(`  Carry distance: ${result2.open_golf_coach.carry_distance_meters.toFixed(2)} meters`);
+console.log(`  Offline distance: ${result2.open_golf_coach.offline_distance_meters.toFixed(2)} meters`);
 
 // Example 3: Minimal input (just ball speed and launch angle)
 console.log('\n\nExample 3: Minimal input');
@@ -77,5 +77,5 @@ console.log('\nOutput:');
 console.log(JSON.stringify(result3, null, 2));
 
 console.log('\nDerived values:');
-console.log(`  Carry distance: ${result3.carry_distance_meters.toFixed(2)} meters`);
-console.log(`  Offline distance: ${result3.offline_distance_meters.toFixed(2)} meters`);
+console.log(`  Carry distance: ${result3.open_golf_coach.carry_distance_meters.toFixed(2)} meters`);
+console.log(`  Offline distance: ${result3.open_golf_coach.offline_distance_meters.toFixed(2)} meters`);
