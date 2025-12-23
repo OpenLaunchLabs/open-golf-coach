@@ -7,8 +7,7 @@ This example demonstrates how to use OpenGolfCoach in a Node.js application.
 First, build the WebAssembly module:
 
 ```bash
-cd ../../core
-wasm-pack build --target nodejs
+npm --prefix ../../bindings/nodejs run build
 ```
 
 This will create a `pkg` directory with the compiled WebAssembly module.

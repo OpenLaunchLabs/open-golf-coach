@@ -5,7 +5,7 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "build": "cd ../../core && wasm-pack build --target nodejs && cp -r pkg/* ../bindings/nodejs/wasm/",
+    "build": "cd ../../core && wasm-pack build --target nodejs && mkdir -p ../bindings/nodejs/wasm && cp -r pkg/* ../bindings/nodejs/wasm/",
     "test": "node test.js"
   },
   "keywords": ["golf", "analytics", "ballistics", "sports"],
