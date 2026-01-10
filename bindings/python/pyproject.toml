@@ -11,10 +11,17 @@ requires-python = ">=3.8"
 license = { text = "Apache-2.0" }
 keywords = ["golf", "analytics", "ballistics", "sports"]
 classifiers = [
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+
+[project.urls]
+Homepage = "https://github.com/OpenLaunchLabs/open-golf-coach"
+Repository = "https://github.com/OpenLaunchLabs/open-golf-coach"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
