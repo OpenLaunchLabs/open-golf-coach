@@ -1,0 +1,8 @@
+# Default shot rank colors
+S+ = "0x23C4FF"
+S  = "0x00B3FF"
+A  = "0x00D977"
+B  = "0x7CB342"
+C  = "0xFFC107"
+D  = "0xFF7043"
+E  = "0xFF1744"

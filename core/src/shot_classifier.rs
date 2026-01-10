@@ -78,7 +78,7 @@ macro_rules! include_rank_colors {
     () => {
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../shot_classification/rank_colors.toml"
+            "/shot_classification/rank_colors.toml"
         ))
     };
 }
