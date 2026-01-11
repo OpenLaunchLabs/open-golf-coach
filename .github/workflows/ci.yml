@@ -170,9 +170,12 @@ jobs:
       - name: Install maturin and pytest
         run: pip install maturin pytest
 
-      - name: Build and install Python bindings
+      - name: Build Python bindings
         working-directory: bindings/python
-        run: maturin develop --release
+        run: maturin build --release
+
+      - name: Install built wheel
+        run: pip install target/wheels/*.whl
 
       - name: Run Python tests
         working-directory: bindings/python
