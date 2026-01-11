@@ -80,26 +80,18 @@ jobs:
           path: bindings/python/dist/*.whl
 
   # ============================================
-  # Build wheels for macOS
+  # Build wheels for macOS (Apple Silicon only)
   # ============================================
   macos:
-    name: Build macOS wheels (${{ matrix.target }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-12
-            target: x86_64
-          - runner: macos-14
-            target: aarch64
+    name: Build macOS wheels (arm64)
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          target: ${{ matrix.target }}
+          target: aarch64
           args: --release --out dist -i 3.8 3.9 3.10 3.11 3.12
           sccache: 'true'
           working-directory: bindings/python
@@ -107,7 +99,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-macos-${{ matrix.target }}
+          name: wheels-macos-aarch64
           path: bindings/python/dist/*.whl
 
   # ============================================
