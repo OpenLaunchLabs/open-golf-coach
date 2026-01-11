@@ -5,23 +5,73 @@ build-backend = "maturin"
 [project]
 name = "opengolfcoach"
 version = "0.1.0"
-description = "Cross-platform library for calculating derived golf shot values"
+description = "High-performance library for calculating derived golf shot values including trajectory, spin components, and shot classification"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "Apache-2.0" }
-keywords = ["golf", "analytics", "ballistics", "sports"]
+authors = [
+    { name = "Open Launch Labs", email = "Support@openlaunch.io" }
+]
+maintainers = [
+    { name = "Open Launch Labs", email = "Support@openlaunch.io" }
+]
+keywords = [
+    "golf",
+    "analytics",
+    "ballistics",
+    "sports",
+    "trajectory",
+    "physics",
+    "launch-monitor",
+    "trackman",
+    "flightscope",
+    "garmin"
+]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Rust",
+    "Operating System :: OS Independent",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Games/Entertainment",
+    "Typing :: Typed",
 ]
 
 [project.urls]
 Homepage = "https://github.com/OpenLaunchLabs/open-golf-coach"
 Repository = "https://github.com/OpenLaunchLabs/open-golf-coach"
+Documentation = "https://github.com/OpenLaunchLabs/open-golf-coach#readme"
+"Bug Tracker" = "https://github.com/OpenLaunchLabs/open-golf-coach/issues"
+Changelog = "https://github.com/OpenLaunchLabs/open-golf-coach/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "opengolfcoach.opengolfcoach"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

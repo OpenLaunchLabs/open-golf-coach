@@ -142,3 +142,38 @@ jobs:
       - name: Build windows-demo
         working-directory: windows-demo
         run: cargo build --release
+
+  python-tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-python-${{ hashFiles('bindings/python/Cargo.lock', 'bindings/python/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-python-
+
+      - name: Install maturin and pytest
+        run: pip install maturin pytest
+
+      - name: Build and install Python bindings
+        working-directory: bindings/python
+        run: maturin develop --release
+
+      - name: Run Python tests
+        working-directory: bindings/python
+        run: pytest tests/ -v
