@@ -43,7 +43,7 @@ fn calculate_derived_values(json_input: &str) -> PyResult<String> {
 /// - Landing position and velocity vectors
 /// - Descent angle
 #[pymodule]
-fn opengolfcoach(_py: Python, m: &PyModule) -> PyResult<()> {
+fn opengolfcoach(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(calculate_derived_values, m)?)?;
     Ok(())
 }
