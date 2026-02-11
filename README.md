@@ -131,7 +131,7 @@ Rank colors can be customized in `shot_classification/rank_colors.toml`.
 ```bash
 # Build WebAssembly module
 cd core
-wasm-pack build --target web
+wasm-pack build --target web --features wasm
 
 # Build native Rust library
 cargo build --release

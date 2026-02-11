@@ -31,7 +31,7 @@ cargo build --release
 cargo test
 
 # WebAssembly
-wasm-pack build --target nodejs
+wasm-pack build --target nodejs --features wasm
 
 # Python bindings
 cd ../bindings/python

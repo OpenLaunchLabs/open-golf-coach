@@ -11,13 +11,13 @@ This is the core Rust implementation that powers all language bindings.
 cargo install wasm-pack
 
 # Build for web
-wasm-pack build --target web
+wasm-pack build --target web --features wasm
 
 # Build for Node.js
-wasm-pack build --target nodejs
+wasm-pack build --target nodejs --features wasm
 
 # Build for bundlers (webpack, etc.)
-wasm-pack build --target bundler
+wasm-pack build --target bundler --features wasm
 ```
 
 ### Native Library (for C++/Python/Unity/Unreal)

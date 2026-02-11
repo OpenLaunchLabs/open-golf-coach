@@ -1,6 +1,5 @@
 use crate::{calculate_derived_values_from_input, InputData};
 use serde_json::Value;
-use wasm_bindgen::prelude::*;
 
 fn merge_existing_derived_fields(value: &mut Value) {
     if let Value::Object(map) = value {
@@ -20,20 +19,16 @@ fn prepare_input_data(value: &Value) -> Result<InputData, serde_json::Error> {
     serde_json::from_value(merged)
 }
 
-/// WebAssembly binding for JavaScript/TypeScript
-#[wasm_bindgen]
-pub fn calculate_derived_values(json_input: &str) -> Result<String, JsValue> {
-    // Set panic hook for better error messages in browser console
-    #[cfg(target_arch = "wasm32")]
-    console_error_panic_hook::set_once();
-
+/// Shared implementation for both WASM and native bindings.
+/// Returns `Result<String, String>` so callers can wrap the error as needed.
+fn calculate_derived_values_inner(json_input: &str) -> Result<String, String> {
     // Parse input JSON
     let mut input_value: Value = serde_json::from_str(json_input)
-        .map_err(|e| JsValue::from_str(&format!("Parse error: {}", e)))?;
+        .map_err(|e| format!("Parse error: {}", e))?;
 
     // Extract input data (respect any provided derived values)
     let input: InputData = prepare_input_data(&input_value)
-        .map_err(|e| JsValue::from_str(&format!("Invalid input format: {}", e)))?;
+        .map_err(|e| format!("Invalid input format: {}", e))?;
 
     // Calculate derived values
     let derived = calculate_derived_values_from_input(&input);
@@ -41,12 +36,27 @@ pub fn calculate_derived_values(json_input: &str) -> Result<String, JsValue> {
     // Add derived values under "open_golf_coach" key
     if let Value::Object(ref mut map) = input_value {
         let derived_json = serde_json::to_value(&derived)
-            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))?;
+            .map_err(|e| format!("Serialization error: {}", e))?;
         map.insert("open_golf_coach".to_string(), derived_json);
     }
 
     serde_json::to_string_pretty(&input_value)
-        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+        .map_err(|e| format!("Serialization error: {}", e))
+}
+
+/// WebAssembly binding for JavaScript/TypeScript
+#[cfg(feature = "wasm")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn calculate_derived_values(json_input: &str) -> Result<String, wasm_bindgen::JsValue> {
+    // Set panic hook for better error messages in browser console
+    console_error_panic_hook::set_once();
+    calculate_derived_values_inner(json_input).map_err(|e| wasm_bindgen::JsValue::from_str(&e))
+}
+
+/// Native binding — returns `Result<String, String>` for non-WASM consumers.
+#[cfg(not(feature = "wasm"))]
+pub fn calculate_derived_values(json_input: &str) -> Result<String, String> {
+    calculate_derived_values_inner(json_input)
 }
 
 /// C-compatible FFI function for C++/Unity/Unreal
@@ -63,6 +73,7 @@ pub extern "C" fn calculate_derived_values_ffi(
         return -1;
     }
 
+    // Parse input JSON
     let input_str = unsafe {
         match CStr::from_ptr(json_input).to_str() {
             Ok(s) => s,
@@ -70,33 +81,9 @@ pub extern "C" fn calculate_derived_values_ffi(
         }
     };
 
-    // Parse input JSON
-    let mut input_value: Value = match serde_json::from_str(input_str) {
-        Ok(v) => v,
-        Err(_) => return -3,
-    };
-
-    // Extract input data (respect any provided derived values)
-    let input: InputData = match prepare_input_data(&input_value) {
-        Ok(i) => i,
-        Err(_) => return -3,
-    };
-
-    // Calculate derived values
-    let derived = calculate_derived_values_from_input(&input);
-
-    // Add derived values under "open_golf_coach" key
-    if let Value::Object(ref mut map) = input_value {
-        let derived_json = match serde_json::to_value(&derived) {
-            Ok(v) => v,
-            Err(_) => return -4,
-        };
-        map.insert("open_golf_coach".to_string(), derived_json);
-    }
-
-    let output_json = match serde_json::to_string(&input_value) {
+    let output_json = match calculate_derived_values_inner(input_str) {
         Ok(s) => s,
-        Err(_) => return -4,
+        Err(_) => return -3,
     };
 
     let c_string = match CString::new(output_json) {
