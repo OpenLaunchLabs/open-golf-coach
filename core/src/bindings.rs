@@ -40,7 +40,7 @@ fn calculate_derived_values_inner(json_input: &str) -> Result<String, String> {
         map.insert("open_golf_coach".to_string(), derived_json);
     }
 
-    serde_json::to_string_pretty(&input_value)
+    serde_json::to_string(&input_value)
         .map_err(|e| format!("Serialization error: {}", e))
 }
 
