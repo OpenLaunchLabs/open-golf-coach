@@ -32,6 +32,17 @@ jobs:
       - name: Install stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            core/target
+          key: ${{ runner.os }}-cargo-crates-validate-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-crates-validate-
+
       - name: Dry-run publish
         run: cargo publish --dry-run -p opengolfcoach
 
