@@ -1,0 +1,220 @@
+name: Python Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'bindings/python/**'
+      - 'core/**'
+      - '.github/workflows/python-publish.yml'
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: 'Publish target'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - testpypi
+          - pypi
+          - none
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_NAME: opengolfcoach
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ============================================
+  # Build source distribution
+  # ============================================
+  sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          working-directory: bindings/python
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
+          path: bindings/python/dist/*.tar.gz
+
+  # ============================================
+  # Build wheels for Linux
+  # ============================================
+  linux:
+    name: Build Linux wheels (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist -i 3.8 3.9 3.10 3.11 3.12
+          sccache: 'true'
+          manylinux: auto
+          working-directory: bindings/python
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-${{ matrix.target }}
+          path: bindings/python/dist/*.whl
+
+  # ============================================
+  # Build wheels for macOS (Apple Silicon only)
+  # ============================================
+  macos:
+    name: Build macOS wheels (arm64)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: aarch64
+          args: --release --out dist -i 3.8 3.9 3.10 3.11 3.12
+          sccache: 'true'
+          working-directory: bindings/python
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-aarch64
+          path: bindings/python/dist/*.whl
+
+  # ============================================
+  # Build wheels for Windows
+  # ============================================
+  windows:
+    name: Build Windows wheels (${{ matrix.target }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist -i 3.8 3.9 3.10 3.11 3.12
+          sccache: 'true'
+          working-directory: bindings/python
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows-${{ matrix.target }}
+          path: bindings/python/dist/*.whl
+
+  # ============================================
+  # Run tests on built wheels
+  # ============================================
+  test:
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    needs: [linux, macos, windows]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.8', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+
+      - name: Install wheel
+        shell: bash
+        run: |
+          pip install --find-links dist opengolfcoach pytest
+
+      - name: Run tests
+        working-directory: bindings/python
+        run: pytest tests/ -v
+
+  # ============================================
+  # Publish to TestPyPI
+  # ============================================
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: [sdist, linux, macos, windows, test]
+    runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_target == 'testpypi') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && contains(github.ref, 'rc'))
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/opengolfcoach/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  # ============================================
+  # Publish to PyPI
+  # ============================================
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [sdist, linux, macos, windows, test]
+    runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_target == 'pypi') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'rc'))
+    environment:
+      name: pypi
+      url: https://pypi.org/project/opengolfcoach/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
