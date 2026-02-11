@@ -45,7 +45,7 @@ fn calculate_derived_values_inner(json_input: &str) -> Result<String, String> {
 }
 
 /// WebAssembly binding for JavaScript/TypeScript
-#[cfg(feature = "wasm")]
+#[cfg(all(feature = "wasm", target_arch = "wasm32"))]
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn calculate_derived_values(json_input: &str) -> Result<String, wasm_bindgen::JsValue> {
     // Set panic hook for better error messages in browser console
@@ -54,7 +54,7 @@ pub fn calculate_derived_values(json_input: &str) -> Result<String, wasm_bindgen
 }
 
 /// Native binding — returns `Result<String, String>` for non-WASM consumers.
-#[cfg(not(feature = "wasm"))]
+#[cfg(not(all(feature = "wasm", target_arch = "wasm32")))]
 pub fn calculate_derived_values(json_input: &str) -> Result<String, String> {
     calculate_derived_values_inner(json_input)
 }
