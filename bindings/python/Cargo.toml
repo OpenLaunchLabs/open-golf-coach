@@ -6,7 +6,7 @@ license.workspace = true
 publish = false
 
 [lib]
-name = "opengolfcoach"
+name = "opengolfcoach_python"
 crate-type = ["cdylib"]
 
 [dependencies]
