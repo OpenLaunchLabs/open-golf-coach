@@ -19,7 +19,7 @@ Example:
     >>> print(result["open_golf_coach"]["carry_distance_meters"])
 """
 
-from .opengolfcoach import calculate_derived_values
+from .opengolfcoach_python import calculate_derived_values
 
 __version__ = "0.1.0"
 __all__ = ["calculate_derived_values", "__version__"]

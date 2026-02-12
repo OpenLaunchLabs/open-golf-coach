@@ -1,5 +1,6 @@
 [workspace]
 members = ["core", "server", "bindings/python", "windows-demo"]
+default-members = ["core", "server", "windows-demo"]
 resolver = "2"
 
 [workspace.package]
