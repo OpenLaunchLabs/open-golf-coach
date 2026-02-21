@@ -56,9 +56,8 @@ const BALL_DIAMETER: f64 = 0.04267; // meters
 const BALL_MASS: f64 = 0.04593; // kg
 const GRAVITY: f64 = 9.81; // m/s²
 
-/// Kinematic viscosity of air at given temperature
-fn kinematic_viscosity_of_air(temp_c: f64) -> f64 {
-    // Sutherland's law approximation
+/// Dynamic viscosity of air at given temperature using Sutherland's law [Pa·s]
+fn dynamic_viscosity_of_air(temp_c: f64) -> f64 {
     let t = temp_c + 273.15;
     1.458e-6 * t.powf(1.5) / (t + 110.4)
 }
@@ -112,7 +111,7 @@ fn lift_coefficient(omega: f64, speed: f64) -> f64 {
 /// and https://www.mdpi.com/2504-3900/2/6/238/pdf
 fn drag_coefficient(omega: f64, speed: f64, temp_c: f64) -> f64 {
     let spin_number = omega * BALL_DIAMETER / (2.0 * speed);
-    let reynolds = speed * BALL_DIAMETER / kinematic_viscosity_of_air(temp_c);
+    let reynolds = speed * BALL_DIAMETER / dynamic_viscosity_of_air(temp_c);
 
     // Calculate spin modifier from spin number
     let mut spin_modifier = -0.255;
