@@ -106,46 +106,37 @@ fn lift_coefficient(omega: f64, speed: f64) -> f64 {
     }
 }
 
-/// Calculate drag coefficient based on Reynolds number and spin
-/// Reference: https://www.seas.upenn.edu/~meam211/slides/aero.pdf
-/// and https://www.mdpi.com/2504-3900/2/6/238/pdf
-fn drag_coefficient(omega: f64, speed: f64, temp_c: f64) -> f64 {
-    let spin_number = omega * BALL_DIAMETER / (2.0 * speed);
-    let reynolds = speed * BALL_DIAMETER / dynamic_viscosity_of_air(temp_c);
+/// Drag coefficient modeled as a generalized smooth sigmoid function.
+///
+/// This generalized model uses a standard logistic (sigmoid) curve to transition
+/// seamlessly through the drag crisis between the subcritical and supercritical regimes,
+/// which is widely accepted in CFD (e.g., Smits & Smith, 1994).
+///
+/// The typical values that are largely ball dependent are the subcritical and supercritcal
+// drag coefficients.  A sigmoid is a reasonable, smooth transition between these two values.
+///
+/// The base drag coefficient is then augmented by a smooth, monotonically increasing
+/// spin modifier.
+fn drag_coefficient(re: f64, spin_param: f64) -> f64 {
+    // Sigmoid parameters for the drag crisis
+    // * Empirical Source (CD bounds): Bearman & Harvey (1976) & Smits & Smith (1994)
+    //   Both observe subcritical CD ~0.5 and supercritical CD ~0.21 - 0.25 for dimpled spheres.
+    const CD_SUBCRIT: f64 = 0.5;      // Low speed drag coeff
+    const CD_SUPERCRIT: f64 = 0.225;    // High speed drag coeff
+    const RE_CRIT: f64 = 80_000.0;     // Center of the drag crisis
+    const K: f64 = 0.0002;            // Steepness of the transition
 
-    // Calculate spin modifier from spin number
-    let mut spin_modifier = -0.255;
-    if spin_number < 0.15 {
-        spin_modifier += (0.28 - 0.255) * (spin_number - 0.00) / (0.15 - 0.00) + 0.255;
-    } else if spin_number < 0.25 {
-        spin_modifier += (0.33 - 0.28) * (spin_number - 0.15) / (0.25 - 0.15) + 0.28;
-    } else if spin_number <= 0.35 {
-        spin_modifier += (0.355 - 0.33) * (spin_number - 0.25) / (0.35 - 0.25) + 0.33;
-    } else {
-        spin_modifier += (0.38 - 0.355) * (spin_number - 0.35) / (0.45 - 0.35) + 0.355;
-    }
+    // 1. Calculate stationary (non-spinning) drag using the sigmoid function
+    let stationary_drag = CD_SUPERCRIT + (CD_SUBCRIT - CD_SUPERCRIT) / (1.0 + f64::exp(K * (re - RE_CRIT)));
 
-    // Calculate drag based on Reynolds number
-    if reynolds < 38000.0 {
-        0.50 + spin_modifier
-    } else if reynolds < 45000.0 {
-        (0.35 - 0.48) * (reynolds - 38000.0) / (45000.0 - 38000.0) + 0.48 + spin_modifier
-    } else if reynolds < 50000.0 {
-        (0.30 - 0.35) * (reynolds - 45000.0) / (50000.0 - 45000.0) + 0.35 + spin_modifier
-    } else if reynolds < 60000.0 {
-        (0.24 + 0.8 * spin_modifier - 0.30 + spin_modifier) * (reynolds - 50000.0)
-            / (60000.0 - 50000.0)
-            + 0.30
-            + spin_modifier
-    } else if reynolds < 240000.0 {
-        (0.26 - 0.24 + 0.8 * spin_modifier) * (reynolds - 60000.0) / (240000.0 - 60000.0)
-            + 0.24
-            + 0.8 * spin_modifier
-    } else if reynolds <= 4000000.0 {
-        (0.30 - 0.26) * (reynolds - 240000.0) / (4000000.0 - 240000.0) + 0.26
-    } else {
-        (0.30 - 0.26) * (reynolds - 240000.0) / (4000000.0 - 240000.0) + 0.26
-    }
+    // 2. Smooth spin modifier
+    // Smits & Smith and empirical data typically model the spin penalty continuously.
+    // The Magnus wake separation penalty plateaus at high spin (S > 0.4).
+    // An inverted exponential captures the initial quadratic behavior (slope ~0.45)
+    // while capping the maximum penalty at +0.18 to prevent unbounded drag on wedges.
+    let spin_modifier = 0.18 * (1.0 - f64::exp(-3.0 * spin_param * spin_param));
+
+    stationary_drag + spin_modifier
 }
 
 /// Calculate full ball trajectory using numerical integration
@@ -242,14 +233,17 @@ pub fn calculate_trajectory(
 
     let air_density = air_density_humid(p_hpa, temperature_c, humidity_fraction);
     let cross_sectional_area = PI * (BALL_DIAMETER / 2.0).powi(2);
+    let kinematic_viscosity = dynamic_viscosity_of_air(temperature_c) / air_density;
 
     while (position.z >= 0.0) && iteration < MAX_ITERATIONS {
         // Get current ball speed
         let current_speed = velocity.magnitude();
 
         // Calculate aerodynamic coefficients
+        let re = current_speed * BALL_DIAMETER / kinematic_viscosity;
+        let spin_param = total_spin * (BALL_DIAMETER / 2.0) / current_speed;
         let lift_coeff = lift_coefficient(total_spin, current_speed);
-        let drag_coeff = drag_coefficient(total_spin, current_speed, temperature_c);
+        let drag_coeff = drag_coefficient(re, spin_param);
 
         // Calculate forces
         let dynamic_pressure = 0.5 * air_density * cross_sectional_area * current_speed.powi(2);
