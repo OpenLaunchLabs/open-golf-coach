@@ -214,9 +214,12 @@ pub fn calculate_trajectory(
 
     let mut total_spin = total_spin_rad_s;
 
-    // Spin decay rate
-    // Fraction per second, exponential decay
-    const SPIN_DECAY_RATE: f64 = 0.04; // 4% per second
+    // Aerodynamic spin decay constant (per meter of travel) based on the
+    // aerodynamic skin-friction theory and empirical wind tunnel matching.
+    // * Empirical Source: Smits and Smith (1994) experimentally measured a decay
+    //   constant of c = 0.00002 for a slazenger ball, which resolves to an
+    //   aerodynamic scalar of K = 0.00094 m^-1.  Modern balls are estimated to decay slighty faster.
+    const K_SPIN_DECAY: f64 = 0.001;
 
     // Simulate until ball hits ground (z <= 0) or is falling (vz < 0)
     // Need at least one iteration to start
@@ -320,8 +323,8 @@ pub fn calculate_trajectory(
 
         velocity = new_velocity;
 
-        // Apply spin decay
-        total_spin *= (-SPIN_DECAY_RATE * DELTA_TIME).exp();
+        // Apply spin decay (Aerodynamic decay proportional to velocity)
+        total_spin *= (-K_SPIN_DECAY * current_speed * DELTA_TIME).exp();
 
         // Update time
         time += DELTA_TIME;
