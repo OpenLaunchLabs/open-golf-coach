@@ -114,7 +114,7 @@ Classification adds three fields to the output:
 - `shot_rank` – gamified ranking (S+, S, A, B, C, D, E)
 - `shot_color_rgb` – hex color for UI visualization
 
-Rank colors can be customized in `shot_classification/rank_colors.toml`.
+Rank colors can be customized in `core/shot_classification/rank_colors.toml`.
 
 ## Building from Source
 
@@ -131,7 +131,7 @@ Rank colors can be customized in `shot_classification/rank_colors.toml`.
 ```bash
 # Build WebAssembly module
 cd core
-wasm-pack build --target web
+wasm-pack build --target web --features wasm
 
 # Build native Rust library
 cargo build --release

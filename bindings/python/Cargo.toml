@@ -3,9 +3,10 @@ name = "opengolfcoach-python"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish = false
 
 [lib]
-name = "opengolfcoach"
+name = "opengolfcoach_python"
 crate-type = ["cdylib"]
 
 [dependencies]
