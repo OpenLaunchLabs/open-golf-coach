@@ -93,16 +93,24 @@ fn air_density_humid(p_hpa: f64, temp_c: f64, rel_humidity: f64) -> f64 {
     (p_dry / (r_dry * t_k)) + (p_vapor / (r_vapor * t_k))
 }
 
-/// Calculate lift coefficient based on spin number
-/// Reference: https://www.seas.upenn.edu/~meam211/slides/aero.pdf
-/// and https://www.mdpi.com/2504-3900/2/6/238/pdf
-fn lift_coefficient(omega: f64, speed: f64) -> f64 {
-    let spin_number = omega * BALL_DIAMETER / (2.0 * speed);
+/// Calculate lift coefficient from spin parameter S = ω·R/V.
+///
+/// For S <= 0.25 uses the Lyu et al. 2018 quadratic fit (averaged across 13
+/// production balls).
+/// Bearman & Harvey (1976) and subsequent studies show CL continues to increase
+/// with spin at supercritical Re. Create a linear extension beyond 0.25,
+/// giving C1 continuity and a physically reasonable slope beyond Lyu.
+/// * Empirical Source (S <= 0.25): Lyu et al. 2018 (13-ball average quadratic fit)
+/// * Empirical Source (S > 0.25 linear slope matching): Bearman & Harvey (1976)
+fn lift_coefficient(spin_param: f64) -> f64 {
+    const S_TRANSITION: f64 = 0.25;
+    const CL_TRANSITION: f64 = 0.2941; // 1.99 * 0.25 - 3.255 * 0.25^2
+    const SLOPE_TRANSITION: f64 = 0.3625; // d/dS(1.99*S - 3.255*S^2) at S = 0.25
 
-    if spin_number > 0.306153 {
-        (0.33 - 0.23) * (spin_number - 0.20) / (0.40 - 0.20) + 0.23
+    if spin_param <= S_TRANSITION {
+        1.99 * spin_param - 3.255 * spin_param * spin_param
     } else {
-        -3.25 * spin_number.powi(2) + 1.99 * spin_number
+        CL_TRANSITION + SLOPE_TRANSITION * (spin_param - S_TRANSITION)
     }
 }
 
@@ -242,7 +250,7 @@ pub fn calculate_trajectory(
         // Calculate aerodynamic coefficients
         let re = current_speed * BALL_DIAMETER / kinematic_viscosity;
         let spin_param = total_spin * (BALL_DIAMETER / 2.0) / current_speed;
-        let lift_coeff = lift_coefficient(total_spin, current_speed);
+        let lift_coeff = lift_coefficient(spin_param);
         let drag_coeff = drag_coefficient(re, spin_param);
 
         // Calculate forces
