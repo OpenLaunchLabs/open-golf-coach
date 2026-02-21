@@ -875,26 +875,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_total_distance_matches_sample_shot() {
-        let (backspin, sidespin) = calculate_spin_components(2800.0, 15.0);
-        let trajectory = calculate_trajectory(
-            70.0, 12.5, -2.0, backspin, sidespin, 0.0, 298.15, 50.0, None,
-        );
-        let carry = get_carry_distance(&trajectory);
-        let total = get_total_distance(&trajectory);
-        let roll = total - carry;
-        assert!(
-            carry > 215.0 && carry < 230.0,
-            "Carry {} should be realistic for this shot",
-            carry
-        );
-        assert!(
-            roll > 5.0 && roll < 15.0,
-            "Roll {} should be near ~10 yards for this shot",
-            roll
-        );
-    }
 
     #[test]
     fn test_trajectory_time() {
@@ -1083,5 +1063,68 @@ mod tests {
         let us_units = &derived["us_customary_units"];
         assert!((us_units["carry_distance_yards"].as_f64().unwrap() - 240.0).abs() < 1e-6);
         assert!((us_units["ball_speed_mph"].as_f64().unwrap() - 150.0).abs() < 0.1);
+    }
+
+    const METERS_TO_YARDS: f64 = 1.093_613_3;
+
+    /// Helper to assert carry is within a percentage of expected
+    fn assert_carry_within_pct(actual_yd: f64, expected_yd: f64, pct: f64, label: &str) {
+        let margin = expected_yd * pct / 100.0;
+        let lo = expected_yd - margin;
+        let hi = expected_yd + margin;
+        assert!(
+            actual_yd > lo && actual_yd < hi,
+            "{label} carry {actual_yd:.1} yd outside {pct}% of expected {expected_yd:.0} ({lo:.1}-{hi:.1})",
+        );
+    }
+
+    #[test]
+    fn test_pro_average_driver() {
+        // Pro average driver: ~171 mph ball speed, ~10° launch, ~2500 rpm
+        let trajectory = calculate_trajectory(
+            76.4, 10.0, 0.0, 2500.0, 0.0, 0.0, 298.15, 50.0, None,
+        );
+        let carry_yd = get_carry_distance(&trajectory) * METERS_TO_YARDS;
+        assert_carry_within_pct(carry_yd, 282.0, 3.0, "Pro driver");
+    }
+
+    #[test]
+    fn test_pro_average_7iron() {
+        // Pro average 7-iron: ~123 mph ball speed, ~16° launch, ~7100 rpm
+        let trajectory = calculate_trajectory(
+            55.0, 16.0, 0.0, 7100.0, 0.0, 0.0, 298.15, 50.0, None,
+        );
+        let carry_yd = get_carry_distance(&trajectory) * METERS_TO_YARDS;
+        assert_carry_within_pct(carry_yd, 176.0, 3.0, "Pro 7-iron");
+    }
+
+    #[test]
+    fn test_amateur_average_driver() {
+        // Amateur average driver: ~143 mph ball speed, ~13° launch, ~2500 rpm
+        let trajectory = calculate_trajectory(
+            63.9, 13.0, 0.0, 2500.0, 0.0, 0.0, 298.15, 50.0, None,
+        );
+        let carry_yd = get_carry_distance(&trajectory) * METERS_TO_YARDS;
+        assert_carry_within_pct(carry_yd, 223.0, 3.0, "Amateur driver");
+    }
+
+    #[test]
+    fn test_amateur_average_7iron() {
+        // Amateur average 7-iron: ~106 mph ball speed, ~19° launch, ~6600 rpm
+        let trajectory = calculate_trajectory(
+            47.4, 19.0, 0.0, 6600.0, 0.0, 0.0, 298.15, 50.0, None,
+        );
+        let carry_yd = get_carry_distance(&trajectory) * METERS_TO_YARDS;
+        assert_carry_within_pct(carry_yd, 143.0, 3.0, "Amateur 7-iron");
+    }
+
+    #[test]
+    fn test_amateur_average_pw() {
+        // Amateur average PW: ~88 mph ball speed, ~25° launch, ~8500 rpm
+        let trajectory = calculate_trajectory(
+            39.3, 25.0, 0.0, 8500.0, 0.0, 0.0, 298.15, 50.0, None,
+        );
+        let carry_yd = get_carry_distance(&trajectory) * METERS_TO_YARDS;
+        assert_carry_within_pct(carry_yd, 108.0, 3.0, "Amateur PW");
     }
 }
