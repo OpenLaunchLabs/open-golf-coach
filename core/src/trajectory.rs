@@ -120,7 +120,7 @@ fn lift_coefficient(spin_param: f64) -> f64 {
 /// seamlessly through the drag crisis between the subcritical and supercritical regimes,
 /// which is widely accepted in CFD (e.g., Smits & Smith, 1994).
 ///
-/// The typical values that are largely ball dependent are the subcritical and supercritcal
+/// The typical values that are largely ball dependent are the subcritical and supercritical
 /// drag coefficients.  A sigmoid is a reasonable, smooth transition between these two values.
 ///
 /// The base drag coefficient is then augmented by a smooth, monotonically increasing
