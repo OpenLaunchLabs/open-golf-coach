@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "opengolfcoach"
-version = "0.1.1"
+version = "0.2.0"
 description = "High-performance library for calculating derived golf shot values including trajectory, spin components, and shot classification"
 readme = "README.md"
 requires-python = ">=3.8"
