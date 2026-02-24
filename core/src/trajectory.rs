@@ -217,7 +217,7 @@ pub fn calculate_trajectory(
     // aerodynamic skin-friction theory and empirical wind tunnel matching.
     // * Empirical Source: Smits and Smith (1994) experimentally measured a decay
     //   constant of c = 0.00002 for a slazenger ball, which resolves to an
-    //   aerodynamic scalar of K = 0.00094 m^-1.  Modern balls are estimated to decay slighty faster.
+    //   aerodynamic scalar of K = 0.00094 m^-1.  Modern balls are estimated to decay slightly faster.
     const K_SPIN_DECAY: f64 = 0.001;
 
     // Simulate until ball hits ground (z <= 0) or is falling (vz < 0)
