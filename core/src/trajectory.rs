@@ -99,7 +99,7 @@ fn air_density_humid(p_hpa: f64, temp_c: f64, rel_humidity: f64) -> f64 {
 /// production balls).
 /// Bearman & Harvey (1976) and subsequent studies show CL continues to increase
 /// with spin at supercritical Re. Create a linear extension beyond 0.25,
-/// giving C1 continuity and a physically reasonable slope beyond Lyu.
+/// giving C_L continuity and a physically reasonable slope beyond Lyu.
 /// * Empirical Source (S <= 0.25): Lyu et al. 2018 (13-ball average quadratic fit)
 /// * Empirical Source (S > 0.25 linear slope matching): Bearman & Harvey (1976)
 fn lift_coefficient(spin_param: f64) -> f64 {
