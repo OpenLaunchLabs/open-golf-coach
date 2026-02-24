@@ -19,6 +19,9 @@ Example:
     >>> print(result["open_golf_coach"]["carry_distance_meters"])
 """
 
+from importlib.metadata import version
+
 from .opengolfcoach_python import calculate_derived_values
 
-__all__ = ["calculate_derived_values"]
+__version__ = version("opengolfcoach")
+__all__ = ["calculate_derived_values", "__version__"]
