@@ -131,4 +131,4 @@ Apache 2.0 License - see [LICENSE](../../LICENSE) for details.
 - [GitHub Repository](https://github.com/OpenLaunchLabs/open-golf-coach)
 - [Documentation](https://github.com/OpenLaunchLabs/open-golf-coach#readme)
 - [Bug Tracker](https://github.com/OpenLaunchLabs/open-golf-coach/issues)
-- [Changelog](https://github.com/OpenLaunchLabs/open-golf-coach/blob/main/CHANGELOG.md)
+- [Changelog](https://github.com/OpenLaunchLabs/open-golf-coach/releases)
