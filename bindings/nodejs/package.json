@@ -1,6 +1,6 @@
 {
   "name": "opengolfcoach",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Cross-platform library for calculating derived golf shot values",
   "main": "index.js",
   "types": "index.d.ts",
