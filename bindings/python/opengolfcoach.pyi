@@ -25,8 +25,28 @@ class USCustomaryUnits(TypedDict, total=False):
     optimal_maximum_distance_yards: float
 
 
+class HandedString(TypedDict):
+    """A string value carrying both right- and left-handed perspectives."""
+
+    right_handed: str
+    left_handed: str
+
+
+class HandedFloat(TypedDict):
+    """A float value carrying both right- and left-handed perspectives."""
+
+    right_handed: float
+    left_handed: float
+
+
 class DerivedValues(TypedDict, total=False):
-    """Derived values calculated by OpenGolfCoach."""
+    """Derived values calculated by OpenGolfCoach.
+
+    Hand-dependent fields (shot_name, shot_rank, shot_color_rgb,
+    club_path_degrees, club_face_to_target_degrees, club_face_to_path_degrees)
+    are wrapped so each call returns both perspectives — pick the side that
+    matches the player.
+    """
 
     backspin_rpm: float
     sidespin_rpm: float
@@ -44,12 +64,12 @@ class DerivedValues(TypedDict, total=False):
     smash_factor: float
     optimal_maximum_distance_meters: float
     distance_efficiency_percent: float
-    club_path_degrees: float
-    club_face_to_target_degrees: float
-    club_face_to_path_degrees: float
-    shot_name: str
-    shot_rank: str
-    shot_color_rgb: str
+    club_path_degrees: HandedFloat
+    club_face_to_target_degrees: HandedFloat
+    club_face_to_path_degrees: HandedFloat
+    shot_name: HandedString
+    shot_rank: HandedString
+    shot_color_rgb: HandedString
     us_customary_units: USCustomaryUnits
     pressure_pascals: float
     elevation_meters: float

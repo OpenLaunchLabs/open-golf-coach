@@ -70,12 +70,12 @@ The library adds derived values to the input:
   "sidespin_rpm": 724.8,
   "club_speed_meters_per_second": 47.4,
   "smash_factor": 1.48,
-  "club_path_degrees": -4.6,
-  "club_face_to_target_degrees": -0.4,
-  "club_face_to_path_degrees": 4.2,
-  "shot_name": "Straight",
-  "shot_rank": "S",
-  "shot_color_rgb": "0x00B3FF",
+  "club_path_degrees":           { "right_handed": -4.6, "left_handed":  4.6 },
+  "club_face_to_target_degrees": { "right_handed": -0.4, "left_handed":  0.4 },
+  "club_face_to_path_degrees":   { "right_handed":  4.2, "left_handed": -4.2 },
+  "shot_name":                   { "right_handed": "Straight", "left_handed": "Straight" },
+  "shot_rank":                   { "right_handed": "S",        "left_handed": "S" },
+  "shot_color_rgb":              { "right_handed": "0x00B3FF", "left_handed": "0x00B3FF" },
   "us_customary_units": {
     "ball_speed_mph": 156.6,
     "club_speed_mph": 106.1,
@@ -109,10 +109,17 @@ Shots are classified using deterministic rules based on horizontal launch angle 
 - Duck Hook / Banana Slice: extreme spin axis with specific speed/VLA
 - Baby Push Draw / Baby Pull Fade: opposite signs with small magnitudes
 
-Classification adds three fields to the output:
+Classification adds three fields to the output. Each is emitted as a
+`{ right_handed, left_handed }` object; the same physical shot is named for
+both perspectives so consumers don't need to know the player's handedness in
+advance:
+
 - `shot_name` – human friendly label (e.g., `Straight`, `Push Slice`)
 - `shot_rank` – gamified ranking (S+, S, A, B, C, D, E)
 - `shot_color_rgb` – hex color for UI visualization
+
+A right-handed `Push Fade` is the same physical shot as a left-handed `Pull
+Draw` — both labels are returned, callers pick the side matching the player.
 
 Rank colors can be customized in `core/shot_classification/rank_colors.toml`.
 
