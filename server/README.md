@@ -105,9 +105,9 @@ The server responds with a JSON object containing the original input plus calcul
     "peak_height_meters": 28.7,
     "hang_time_seconds": 5.2,
     "descent_angle_degrees": 42.3,
-    "shot_name": "Pull Fade",
-    "shot_rank": "good",
-    "shot_color_rgb": "#4CAF50"
+    "shot_name":      { "right_handed": "Pull Fade", "left_handed": "Push Draw" },
+    "shot_rank":      { "right_handed": "A",         "left_handed": "A" },
+    "shot_color_rgb": { "right_handed": "0x00D977",  "left_handed": "0x00D977" }
   }
 }
 ```

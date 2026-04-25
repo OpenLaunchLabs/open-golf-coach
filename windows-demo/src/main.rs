@@ -292,32 +292,33 @@ impl OpenGolfCoachApp {
                 continue; // Continue to next shot instead of closing connection
             }
 
-            // Apply sign inversion for left-handed golfers before processing
-            let processed_json = if is_left_handed.load(Ordering::Relaxed) {
-                invert_signs_for_left_handed(input_json.trim())
-            } else {
-                input_json.trim().to_string()
-            };
-
             // Process the golf shot calculation and immediately convert to Send-safe types
             let (response_msg, status_msg) = {
-                match calculate_derived_values(&processed_json) {
+                match calculate_derived_values(input_json.trim()) {
                     Ok(result_json) => {
                     // Parse the result to extract all data
                     if let Ok(result) = serde_json::from_str::<serde_json::Value>(&result_json) {
                         if let Some(ogc) = result.get("open_golf_coach") {
+                            let hand_key = if is_left_handed.load(Ordering::Relaxed) {
+                                "left_handed"
+                            } else {
+                                "right_handed"
+                            };
                             let shot_name = ogc
                                 .get("shot_name")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("Unknown")
                                 .to_string();
                             let shot_rank = ogc
                                 .get("shot_rank")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("Unknown")
                                 .to_string();
                             let shot_color_rgb = ogc
                                 .get("shot_color_rgb")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("0xFFFFFF")
                                 .to_string();
@@ -358,12 +359,15 @@ impl OpenGolfCoachApp {
                                 .and_then(|v| v.as_f64());
                             let club_path_degrees = ogc
                                 .get("club_path_degrees")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_f64());
                             let club_face_to_path_degrees = ogc
                                 .get("club_face_to_path_degrees")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_f64());
                             let club_face_to_target_degrees = ogc
                                 .get("club_face_to_target_degrees")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_f64());
 
                             // Get current timestamp
@@ -542,31 +546,32 @@ impl OpenGolfCoachApp {
             // Convert OpenAPI format to OpenGolfCoach format
             let ogc_input = Self::convert_openapi_to_ogc(&openapi_data);
 
-            // Apply sign inversion for left-handed golfers before processing
-            let processed_input = if is_left_handed.load(Ordering::Relaxed) {
-                invert_signs_for_left_handed(&ogc_input)
-            } else {
-                ogc_input
-            };
-
             // Process the shot calculation and extract all data
             let shot_result = {
-                match calculate_derived_values(&processed_input) {
+                match calculate_derived_values(&ogc_input) {
                     Ok(result_json) => {
                     if let Ok(result) = serde_json::from_str::<serde_json::Value>(&result_json) {
                         if let Some(ogc) = result.get("open_golf_coach") {
+                            let hand_key = if is_left_handed.load(Ordering::Relaxed) {
+                                "left_handed"
+                            } else {
+                                "right_handed"
+                            };
                             let shot_name = ogc
                                 .get("shot_name")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("Unknown")
                                 .to_string();
                             let shot_rank = ogc
                                 .get("shot_rank")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("Unknown")
                                 .to_string();
                             let shot_color_rgb = ogc
                                 .get("shot_color_rgb")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("0xFFFFFF")
                                 .to_string();
@@ -607,12 +612,15 @@ impl OpenGolfCoachApp {
                                 .and_then(|v| v.as_f64());
                             let club_path_degrees = ogc
                                 .get("club_path_degrees")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_f64());
                             let club_face_to_path_degrees = ogc
                                 .get("club_face_to_path_degrees")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_f64());
                             let club_face_to_target_degrees = ogc
                                 .get("club_face_to_target_degrees")
+                                .and_then(|v| v.get(hand_key))
                                 .and_then(|v| v.as_f64());
 
                             let now = chrono::Local::now();
@@ -774,27 +782,6 @@ fn parse_hex_color(hex_str: &str) -> egui::Color32 {
         }
     }
     egui::Color32::WHITE // Fallback
-}
-
-// Invert horizontal launch angle and spin axis for left-handed golfers
-// This transforms the data so the classification system (designed for right-handed)
-// produces the correct shot names for left-handed golfers
-fn invert_signs_for_left_handed(input_json: &str) -> String {
-    if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(input_json) {
-        if let Some(obj) = json.as_object_mut() {
-            // Invert horizontal_launch_angle_degrees
-            if let Some(h_launch) = obj.get("horizontal_launch_angle_degrees").and_then(|v| v.as_f64()) {
-                obj.insert("horizontal_launch_angle_degrees".to_string(), serde_json::json!(-h_launch));
-            }
-            // Invert spin_axis_degrees
-            if let Some(spin_axis) = obj.get("spin_axis_degrees").and_then(|v| v.as_f64()) {
-                obj.insert("spin_axis_degrees".to_string(), serde_json::json!(-spin_axis));
-            }
-        }
-        serde_json::to_string(&json).unwrap_or_else(|_| input_json.to_string())
-    } else {
-        input_json.to_string()
-    }
 }
 
 impl eframe::App for OpenGolfCoachApp {

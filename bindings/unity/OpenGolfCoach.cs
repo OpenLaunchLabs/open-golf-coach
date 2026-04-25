@@ -30,15 +30,15 @@ namespace OpenGolfCoach
         public float club_speed_meters_per_second;
         public float club_speed_mph;
         public float smash_factor;
-        public float club_path_degrees;
-        public float club_face_to_target_degrees;
-        public float club_face_to_path_degrees;
+        public HandedFloat club_path_degrees;
+        public HandedFloat club_face_to_target_degrees;
+        public HandedFloat club_face_to_path_degrees;
         public Vector3 landing_position_yards;
         public Vector3 landing_velocity_mph;
         public float peak_height_yards;
-        public string shot_name;
-        public string shot_rank;
-        public string shot_color_rgb;
+        public HandedString shot_name;
+        public HandedString shot_rank;
+        public HandedString shot_color_rgb;
         public USCustomaryUnits us_customary_units;
 
         public GolfShotData()
@@ -60,16 +60,52 @@ namespace OpenGolfCoach
             club_speed_meters_per_second = 0f;
             club_speed_mph = 0f;
             smash_factor = 0f;
-            club_path_degrees = 0f;
-            club_face_to_target_degrees = 0f;
-            club_face_to_path_degrees = 0f;
+            club_path_degrees = new HandedFloat();
+            club_face_to_target_degrees = new HandedFloat();
+            club_face_to_path_degrees = new HandedFloat();
             landing_position_yards = Vector3.zero;
             landing_velocity_mph = Vector3.zero;
             peak_height_yards = 0f;
-            shot_name = string.Empty;
-            shot_rank = string.Empty;
-            shot_color_rgb = string.Empty;
+            shot_name = new HandedString();
+            shot_rank = new HandedString();
+            shot_color_rgb = new HandedString();
             us_customary_units = new USCustomaryUnits();
+        }
+    }
+
+    /// <summary>
+    /// String value carrying both right- and left-handed perspectives.
+    /// Hand-dependent outputs (shot names, etc.) are returned in this shape so
+    /// consumers can pick the side that matches the player without re-running
+    /// the calculation.
+    /// </summary>
+    [Serializable]
+    public class HandedString
+    {
+        public string right_handed;
+        public string left_handed;
+
+        public HandedString()
+        {
+            right_handed = string.Empty;
+            left_handed = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Float value carrying both right- and left-handed perspectives.
+    /// Used for hand-dependent club mechanics (path, face-to-target, face-to-path).
+    /// </summary>
+    [Serializable]
+    public class HandedFloat
+    {
+        public float right_handed;
+        public float left_handed;
+
+        public HandedFloat()
+        {
+            right_handed = 0f;
+            left_handed = 0f;
         }
     }
 
@@ -145,7 +181,21 @@ namespace OpenGolfCoach
 
             // Parse output JSON
             string jsonOutput = output.ToString();
-            return JsonUtility.FromJson<GolfShotData>(jsonOutput);
+            GolfShotData parsed = JsonUtility.FromJson<GolfShotData>(jsonOutput);
+
+            // JsonUtility.FromJson does not invoke constructors, so hand-dependent
+            // fields the Rust core omits (Option::None) deserialize as null.
+            // Replace nulls with default instances so consumers can read both
+            // perspectives without null-checking every field.
+            parsed.club_path_degrees ??= new HandedFloat();
+            parsed.club_face_to_target_degrees ??= new HandedFloat();
+            parsed.club_face_to_path_degrees ??= new HandedFloat();
+            parsed.shot_name ??= new HandedString();
+            parsed.shot_rank ??= new HandedString();
+            parsed.shot_color_rgb ??= new HandedString();
+            parsed.us_customary_units ??= new USCustomaryUnits();
+
+            return parsed;
         }
 
         /// <summary>

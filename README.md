@@ -63,25 +63,27 @@ The library adds derived values to the input:
   "horizontal_launch_angle_degrees": -2.0,
   "total_spin_rpm": 2800.0,
   "spin_axis_degrees": 15.0,
-  "carry_distance_meters": 185.4,
-  "total_distance_meters": 201.7,
-  "offline_distance_meters": -6.2,
-  "backspin_rpm": 2700.5,
-  "sidespin_rpm": 724.8,
-  "club_speed_meters_per_second": 47.4,
-  "smash_factor": 1.48,
-  "club_path_degrees": -4.6,
-  "club_face_to_target_degrees": -0.4,
-  "club_face_to_path_degrees": 4.2,
-  "shot_name": "Straight",
-  "shot_rank": "S",
-  "shot_color_rgb": "0x00B3FF",
-  "us_customary_units": {
-    "ball_speed_mph": 156.6,
-    "club_speed_mph": 106.1,
-    "carry_distance_yards": 202.9,
-    "total_distance_yards": 220.6,
-    "offline_distance_yards": -6.8
+  "open_golf_coach": {
+    "carry_distance_meters": 185.4,
+    "total_distance_meters": 201.7,
+    "offline_distance_meters": -6.2,
+    "backspin_rpm": 2700.5,
+    "sidespin_rpm": 724.8,
+    "club_speed_meters_per_second": 47.4,
+    "smash_factor": 1.48,
+    "club_path_degrees":           { "right_handed": -4.6, "left_handed":  4.6 },
+    "club_face_to_target_degrees": { "right_handed": -0.4, "left_handed":  0.4 },
+    "club_face_to_path_degrees":   { "right_handed":  4.2, "left_handed": -4.2 },
+    "shot_name":                   { "right_handed": "Straight Slice", "left_handed": "Straight Hook" },
+    "shot_rank":                   { "right_handed": "D",        "left_handed": "D" },
+    "shot_color_rgb":              { "right_handed": "0xFF7043", "left_handed": "0xFF7043" },
+    "us_customary_units": {
+      "ball_speed_mph": 156.6,
+      "club_speed_mph": 106.1,
+      "carry_distance_yards": 202.9,
+      "total_distance_yards": 220.6,
+      "offline_distance_yards": -6.8
+    }
   }
 }
 ```
@@ -109,10 +111,17 @@ Shots are classified using deterministic rules based on horizontal launch angle 
 - Duck Hook / Banana Slice: extreme spin axis with specific speed/VLA
 - Baby Push Draw / Baby Pull Fade: opposite signs with small magnitudes
 
-Classification adds three fields to the output:
+Classification adds three fields to the output. Each is emitted as a
+`{ right_handed, left_handed }` object; the same physical shot is named for
+both perspectives so consumers don't need to know the player's handedness in
+advance:
+
 - `shot_name` – human friendly label (e.g., `Straight`, `Push Slice`)
 - `shot_rank` – gamified ranking (S+, S, A, B, C, D, E)
 - `shot_color_rgb` – hex color for UI visualization
+
+A right-handed `Push Fade` is the same physical shot as a left-handed `Pull
+Draw` — both labels are returned, callers pick the side matching the player.
 
 Rank colors can be customized in `core/shot_classification/rank_colors.toml`.
 

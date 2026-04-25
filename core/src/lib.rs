@@ -36,6 +36,17 @@ use unit_conversions::{
 #[cfg(test)]
 use serde_json::Value;
 
+/// Wrapper carrying both right-handed and left-handed perspectives of a value.
+///
+/// Hand-dependent outputs (shot names, club path/face) are emitted as
+/// `Handed<T>` so consumers can pick the perspective matching the player
+/// without re-running the calculation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Handed<T> {
+    pub right_handed: T,
+    pub left_handed: T,
+}
+
 /// Derived values calculated by OpenGolfCoach
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DerivedValues {
@@ -90,23 +101,24 @@ pub struct DerivedValues {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distance_efficiency_percent: Option<f64>,
 
+    // Hand-dependent values: each carries both right- and left-handed perspectives.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub club_path_degrees: Option<f64>,
+    pub club_path_degrees: Option<Handed<f64>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub club_face_to_target_degrees: Option<f64>,
+    pub club_face_to_target_degrees: Option<Handed<f64>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub club_face_to_path_degrees: Option<f64>,
+    pub club_face_to_path_degrees: Option<Handed<f64>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shot_name: Option<String>,
+    pub shot_name: Option<Handed<String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shot_rank: Option<String>,
+    pub shot_rank: Option<Handed<String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shot_color_rgb: Option<String>,
+    pub shot_color_rgb: Option<Handed<String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub us_customary_units: Option<USCustomaryValues>,
@@ -421,24 +433,6 @@ pub struct InputData {
     #[serde(default)]
     smash_factor: Option<f64>,
 
-    #[serde(default)]
-    club_path_degrees: Option<f64>,
-
-    #[serde(default)]
-    club_face_to_target_degrees: Option<f64>,
-
-    #[serde(default)]
-    club_face_to_path_degrees: Option<f64>,
-
-    #[serde(default)]
-    shot_name: Option<String>,
-
-    #[serde(default)]
-    shot_rank: Option<String>,
-
-    #[serde(default)]
-    shot_color_rgb: Option<String>,
-
     // Environmental conditions
     #[serde(default)]
     pressure_pascals: Option<f64>,
@@ -482,12 +476,6 @@ pub fn calculate_derived_values_from_input(input: &InputData) -> DerivedValues {
     copy_if_provided!(peak_height_meters);
     copy_if_provided!(club_speed_meters_per_second);
     copy_if_provided!(smash_factor);
-    copy_if_provided!(club_path_degrees);
-    copy_if_provided!(club_face_to_target_degrees);
-    copy_if_provided!(club_face_to_path_degrees);
-    copy_if_provided!(shot_name);
-    copy_if_provided!(shot_rank);
-    copy_if_provided!(shot_color_rgb);
 
     let root_us_units = InputUSCustomaryUnits {
         ball_speed_mph: input.ball_speed_mph,
@@ -661,65 +649,58 @@ pub fn calculate_derived_values_from_input(input: &InputData) -> DerivedValues {
             derived.distance_efficiency_percent = Some(efficiency.round());
         }
 
-        // Estimate club face/path relationship when we have horizontal launch data, but only if not provided
-        let needs_face_path = derived.club_path_degrees.is_none()
-            || derived.club_face_to_target_degrees.is_none()
-            || derived.club_face_to_path_degrees.is_none();
+        // Compute hand-dependent values once per perspective. Each is paired
+        // into a Handed<T> so consumers can pick the side that matches the
+        // player without re-running the calculation.
+        let total_spin_for_classification =
+            input.total_spin_rpm.or(derived.total_spin_rpm).or_else(|| {
+                derived
+                    .backspin_rpm
+                    .zip(derived.sidespin_rpm)
+                    .map(|(bs, ss)| (bs.powi(2) + ss.powi(2)).sqrt())
+            });
+        let spin_axis_for_classification =
+            input.spin_axis_degrees.or(derived.spin_axis_degrees);
+        let has_h_angle_input = input.horizontal_launch_angle_degrees.is_some();
 
-        if needs_face_path {
-            if let Some(spin_axis) = input.spin_axis_degrees.or(derived.spin_axis_degrees) {
-                if input.horizontal_launch_angle_degrees.is_some() {
-                    let estimates = estimate_club_face_path(ball_speed, h_angle, spin_axis);
-                    if derived.club_path_degrees.is_none() {
-                        derived.club_path_degrees = Some(estimates.club_path_degrees);
-                    }
-                    if derived.club_face_to_target_degrees.is_none() {
-                        derived.club_face_to_target_degrees =
-                            Some(estimates.club_face_to_target_degrees);
-                    }
-                    if derived.club_face_to_path_degrees.is_none() {
-                        derived.club_face_to_path_degrees =
-                            Some(estimates.club_face_to_path_degrees);
-                    }
-                }
-            }
+        let rh = compute_for_hand(
+            ball_speed,
+            v_angle,
+            h_angle,
+            total_spin_for_classification,
+            spin_axis_for_classification,
+            has_h_angle_input,
+            false,
+        );
+        let lh = compute_for_hand(
+            ball_speed,
+            v_angle,
+            h_angle,
+            total_spin_for_classification,
+            spin_axis_for_classification,
+            has_h_angle_input,
+            true,
+        );
+
+        if let (Some(r), Some(l)) = (rh.shot_name, lh.shot_name) {
+            derived.shot_name = Some(Handed { right_handed: r, left_handed: l });
         }
-
-        // Shot classification (vector similarity) if not already provided
-        let needs_shot_classification = derived.shot_name.is_none()
-            || derived.shot_rank.is_none()
-            || derived.shot_color_rgb.is_none();
-
-        if needs_shot_classification {
-            let total_spin_for_classification =
-                input.total_spin_rpm.or(derived.total_spin_rpm).or_else(|| {
-                    derived
-                        .backspin_rpm
-                        .zip(derived.sidespin_rpm)
-                        .map(|(bs, ss)| (bs.powi(2) + ss.powi(2)).sqrt())
-                });
-            let spin_axis_for_classification =
-                input.spin_axis_degrees.or(derived.spin_axis_degrees);
-
-            if let (Some(ball_speed), Some(total_spin), Some(spin_axis)) = (
-                ball_speed_mps,
-                total_spin_for_classification,
-                spin_axis_for_classification,
-            ) {
-                if let Some(classification) =
-                    classify_shot(ball_speed, v_angle, h_angle, total_spin, spin_axis)
-                {
-                    if derived.shot_name.is_none() {
-                        derived.shot_name = Some(classification.shot_name);
-                    }
-                    if derived.shot_rank.is_none() {
-                        derived.shot_rank = Some(classification.shot_rank);
-                    }
-                    if derived.shot_color_rgb.is_none() {
-                        derived.shot_color_rgb = Some(classification.shot_color_rgb);
-                    }
-                }
-            }
+        if let (Some(r), Some(l)) = (rh.shot_rank, lh.shot_rank) {
+            derived.shot_rank = Some(Handed { right_handed: r, left_handed: l });
+        }
+        if let (Some(r), Some(l)) = (rh.shot_color_rgb, lh.shot_color_rgb) {
+            derived.shot_color_rgb = Some(Handed { right_handed: r, left_handed: l });
+        }
+        if let (Some(r), Some(l)) = (rh.club_path_degrees, lh.club_path_degrees) {
+            derived.club_path_degrees = Some(Handed { right_handed: r, left_handed: l });
+        }
+        if let (Some(r), Some(l)) = (rh.club_face_to_target_degrees, lh.club_face_to_target_degrees) {
+            derived.club_face_to_target_degrees =
+                Some(Handed { right_handed: r, left_handed: l });
+        }
+        if let (Some(r), Some(l)) = (rh.club_face_to_path_degrees, lh.club_face_to_path_degrees) {
+            derived.club_face_to_path_degrees =
+                Some(Handed { right_handed: r, left_handed: l });
         }
 
         // Add environmental defaults to output if user didn't provide them
@@ -749,7 +730,7 @@ pub fn calculate_derived_values_from_input(input: &InputData) -> DerivedValues {
 ///
 /// # Arguments
 /// * `total_spin_rpm` - Total spin rate in RPM
-/// * `spin_axis_degrees` - Spin axis angle in degrees (0 = pure backspin, positive = hook spin)
+/// * `spin_axis_degrees` - Spin axis angle in degrees (0 = pure backspin, positive = curves right of target line, i.e. slice/fade for a RH golfer)
 ///
 /// # Returns
 /// (backspin_rpm, sidespin_rpm)
@@ -769,7 +750,7 @@ pub fn calculate_spin_components(total_spin_rpm: f64, spin_axis_degrees: f64) ->
 ///
 /// # Arguments
 /// * `backspin_rpm` - Backspin rate in RPM
-/// * `sidespin_rpm` - Sidespin rate in RPM (positive = hook/right spin for RH golfer)
+/// * `sidespin_rpm` - Sidespin rate in RPM (positive = right of target line, i.e. slice spin for a RH golfer)
 ///
 /// # Returns
 /// (total_spin_rpm, spin_axis_degrees)
@@ -782,6 +763,58 @@ pub fn calculate_total_spin_and_axis(backspin_rpm: f64, sidespin_rpm: f64) -> (f
     let spin_axis_degrees = spin_axis_rad * 180.0 / PI;
 
     (total_spin, spin_axis_degrees)
+}
+
+#[derive(Default)]
+struct HandedScalars {
+    shot_name: Option<String>,
+    shot_rank: Option<String>,
+    shot_color_rgb: Option<String>,
+    club_path_degrees: Option<f64>,
+    club_face_to_target_degrees: Option<f64>,
+    club_face_to_path_degrees: Option<f64>,
+}
+
+// Compute the hand-dependent values for one perspective. When `mirror` is
+// true, the absolute-frame inputs are reflected across the target line
+// (negate HLA and spin axis). Both the right-handed classifier and the
+// face/path estimator are antisymmetric under that reflection, so feeding
+// them mirrored inputs naturally yields outputs already expressed in the
+// left-handed player's own swing reference frame — no further adjustment
+// is needed.
+fn compute_for_hand(
+    ball_speed_mps: f64,
+    v_angle: f64,
+    h_angle: f64,
+    total_spin: Option<f64>,
+    spin_axis: Option<f64>,
+    has_h_angle_input: bool,
+    mirror: bool,
+) -> HandedScalars {
+    let sign = if mirror { -1.0 } else { 1.0 };
+    let h = sign * h_angle;
+    let sa = spin_axis.map(|v| sign * v);
+
+    let mut out = HandedScalars::default();
+
+    if has_h_angle_input {
+        if let Some(spin_axis_value) = sa {
+            let est = estimate_club_face_path(ball_speed_mps, h, spin_axis_value);
+            out.club_path_degrees = Some(est.club_path_degrees);
+            out.club_face_to_target_degrees = Some(est.club_face_to_target_degrees);
+            out.club_face_to_path_degrees = Some(est.club_face_to_path_degrees);
+        }
+    }
+
+    if let (Some(total_spin), Some(spin_axis_value)) = (total_spin, sa) {
+        if let Some(c) = classify_shot(ball_speed_mps, v_angle, h, total_spin, spin_axis_value) {
+            out.shot_name = Some(c.shot_name);
+            out.shot_rank = Some(c.shot_rank);
+            out.shot_color_rgb = Some(c.shot_color_rgb);
+        }
+    }
+
+    out
 }
 
 #[cfg(test)]
@@ -930,12 +963,18 @@ mod tests {
         assert!(derived.get("sidespin_rpm").is_some());
         assert!(derived.get("hang_time_seconds").is_some());
         assert!(derived.get("peak_height_meters").is_some());
-        assert!(derived.get("club_path_degrees").is_some());
-        assert!(derived.get("club_face_to_target_degrees").is_some());
-        assert!(derived.get("club_face_to_path_degrees").is_some());
-        assert!(derived.get("shot_name").is_some());
-        assert!(derived.get("shot_rank").is_some());
-        assert!(derived.get("shot_color_rgb").is_some());
+        assert!(derived["club_path_degrees"]["right_handed"].is_f64());
+        assert!(derived["club_path_degrees"]["left_handed"].is_f64());
+        assert!(derived["club_face_to_target_degrees"]["right_handed"].is_f64());
+        assert!(derived["club_face_to_target_degrees"]["left_handed"].is_f64());
+        assert!(derived["club_face_to_path_degrees"]["right_handed"].is_f64());
+        assert!(derived["club_face_to_path_degrees"]["left_handed"].is_f64());
+        assert!(derived["shot_name"]["right_handed"].is_string());
+        assert!(derived["shot_name"]["left_handed"].is_string());
+        assert!(derived["shot_rank"]["right_handed"].is_string());
+        assert!(derived["shot_rank"]["left_handed"].is_string());
+        assert!(derived["shot_color_rgb"]["right_handed"].is_string());
+        assert!(derived["shot_color_rgb"]["left_handed"].is_string());
         assert!(derived.get("us_customary_units").is_some());
 
         // Verify hang_time_seconds is reasonable
@@ -962,6 +1001,8 @@ mod tests {
 
     #[test]
     fn test_preserve_provided_derived_values() {
+        // Hand-independent values supplied by the caller should round-trip.
+        // Hand-dependent values are no longer accepted as inputs.
         let json_input = r#"{
             "ball_speed_meters_per_second": 70.0,
             "vertical_launch_angle_degrees": 12.0,
@@ -970,7 +1011,6 @@ mod tests {
             "spin_axis_degrees": 15.0,
             "open_golf_coach": {
                 "carry_distance_meters": 150.0,
-                "club_path_degrees": -3.5,
                 "smash_factor": 1.42
             }
         }"#;
@@ -980,7 +1020,6 @@ mod tests {
 
         let derived = &output["open_golf_coach"];
         assert!((derived["carry_distance_meters"].as_f64().unwrap() - 150.0).abs() < 1e-6);
-        assert!((derived["club_path_degrees"].as_f64().unwrap() + 3.5).abs() < 1e-6);
         assert!((derived["smash_factor"].as_f64().unwrap() - 1.42).abs() < 1e-6);
     }
 
@@ -1025,9 +1064,102 @@ mod tests {
         let output: Value = serde_json::from_str(&result).unwrap();
         let derived = &output["open_golf_coach"];
 
-        assert_eq!(derived["shot_name"], "Straight");
-        assert_eq!(derived["shot_rank"], "B");
-        assert_eq!(derived["shot_color_rgb"], "0x7CB342");
+        // A perfectly straight shot mirrors to itself across handedness.
+        assert_eq!(derived["shot_name"]["right_handed"], "Straight");
+        assert_eq!(derived["shot_name"]["left_handed"], "Straight");
+        assert_eq!(derived["shot_rank"]["right_handed"], "B");
+        assert_eq!(derived["shot_rank"]["left_handed"], "B");
+        assert_eq!(derived["shot_color_rgb"]["right_handed"], "0x7CB342");
+        assert_eq!(derived["shot_color_rgb"]["left_handed"], "0x7CB342");
+    }
+
+    #[test]
+    fn test_handed_mirroring_push_fade() {
+        // RH: HLA=+5 (push), spin_axis=+10 (fade) -> "Push Fade".
+        // The same physical shot reads as a pull-draw for a LH golfer.
+        let json_input = r#"{
+            "ball_speed_meters_per_second": 70.0,
+            "vertical_launch_angle_degrees": 12.0,
+            "horizontal_launch_angle_degrees": 5.0,
+            "total_spin_rpm": 2800.0,
+            "spin_axis_degrees": 10.0
+        }"#;
+
+        let result = calculate_derived_values(json_input).unwrap();
+        let output: Value = serde_json::from_str(&result).unwrap();
+        let derived = &output["open_golf_coach"];
+
+        assert_eq!(derived["shot_name"]["right_handed"], "Push Fade");
+        assert_eq!(derived["shot_name"]["left_handed"], "Pull Draw");
+
+        // Club path/face/face-to-path read in the player's own swing frame
+        // and should be exact mirrors across handedness.
+        let rh_path = derived["club_path_degrees"]["right_handed"]
+            .as_f64()
+            .unwrap();
+        let lh_path = derived["club_path_degrees"]["left_handed"]
+            .as_f64()
+            .unwrap();
+        assert!((rh_path + lh_path).abs() < 1e-9);
+
+        let rh_face = derived["club_face_to_target_degrees"]["right_handed"]
+            .as_f64()
+            .unwrap();
+        let lh_face = derived["club_face_to_target_degrees"]["left_handed"]
+            .as_f64()
+            .unwrap();
+        assert!((rh_face + lh_face).abs() < 1e-9);
+
+        let rh_f2p = derived["club_face_to_path_degrees"]["right_handed"]
+            .as_f64()
+            .unwrap();
+        let lh_f2p = derived["club_face_to_path_degrees"]["left_handed"]
+            .as_f64()
+            .unwrap();
+        assert!((rh_f2p + lh_f2p).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_handed_shanks_mirror() {
+        // |HLA| > 12 with VLA > 12 hits the shank special-case. The same
+        // physical shot is "Right Shank" for RH and "Left Shank" for LH.
+        let json_input = r#"{
+            "ball_speed_meters_per_second": 60.0,
+            "vertical_launch_angle_degrees": 13.0,
+            "horizontal_launch_angle_degrees": 13.0,
+            "total_spin_rpm": 3000.0,
+            "spin_axis_degrees": 0.0
+        }"#;
+
+        let result = calculate_derived_values(json_input).unwrap();
+        let output: Value = serde_json::from_str(&result).unwrap();
+        let derived = &output["open_golf_coach"];
+
+        assert_eq!(derived["shot_name"]["right_handed"], "Right Shank");
+        assert_eq!(derived["shot_name"]["left_handed"], "Left Shank");
+    }
+
+    #[test]
+    fn test_handed_no_hla_same_classification() {
+        // Without an HLA input, both perspectives reduce to identical labels
+        // (HLA defaults to 0, which mirrors to itself).
+        let json_input = r#"{
+            "ball_speed_meters_per_second": 70.0,
+            "vertical_launch_angle_degrees": 12.0,
+            "total_spin_rpm": 2500.0,
+            "spin_axis_degrees": 0.0
+        }"#;
+
+        let result = calculate_derived_values(json_input).unwrap();
+        let output: Value = serde_json::from_str(&result).unwrap();
+        let derived = &output["open_golf_coach"];
+
+        assert_eq!(
+            derived["shot_name"]["right_handed"],
+            derived["shot_name"]["left_handed"]
+        );
+        // Without an HLA input we don't compute club path/face for either hand.
+        assert!(derived.get("club_path_degrees").is_none());
     }
 
     #[test]

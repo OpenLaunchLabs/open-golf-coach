@@ -16,6 +16,17 @@ export interface USCustomaryUnits {
 }
 
 /**
+ * Wrapper carrying both right-handed and left-handed perspectives of a value.
+ * Hand-dependent outputs (shot names, club path/face) are emitted as `Handed<T>`
+ * so consumers pick the perspective matching the player without re-running
+ * the calculation.
+ */
+export interface Handed<T> {
+  right_handed: T;
+  left_handed: T;
+}
+
+/**
  * Golf shot data structure
  */
 export interface GolfShot {
@@ -61,23 +72,23 @@ export interface GolfShot {
   /** Smash factor (ball speed / club speed) */
   smash_factor?: number;
 
-  /** Estimated club path relative to target line */
-  club_path_degrees?: number;
+  /** Estimated club path relative to target line, per handedness */
+  club_path_degrees?: Handed<number>;
 
-  /** Estimated face orientation relative to target */
-  club_face_to_target_degrees?: number;
+  /** Estimated face orientation relative to target, per handedness */
+  club_face_to_target_degrees?: Handed<number>;
 
-  /** Estimated face-to-path relationship */
-  club_face_to_path_degrees?: number;
+  /** Estimated face-to-path relationship, per handedness */
+  club_face_to_path_degrees?: Handed<number>;
 
-  /** Classified shot label */
-  shot_name?: string;
+  /** Classified shot label, per handedness */
+  shot_name?: Handed<string>;
 
-  /** Classification rank (S+, S, A, etc.) */
-  shot_rank?: string;
+  /** Classification rank (S+, S, A, etc.), per handedness */
+  shot_rank?: Handed<string>;
 
-  /** Recommended display color for the shot */
-  shot_color_rgb?: string;
+  /** Recommended display color for the shot, per handedness */
+  shot_color_rgb?: Handed<string>;
 
   /** Carry distance in yards (converted to meters) */
   carry_distance_yards?: number;
