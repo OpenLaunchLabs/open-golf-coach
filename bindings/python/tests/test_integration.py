@@ -75,7 +75,8 @@ class TestIntegration:
         result = json.loads(result_json)
         ogc = result["open_golf_coach"]
 
-        assert ogc["shot_name"] == "Straight"
+        assert ogc["shot_name"]["right_handed"] == "Straight"
+        assert ogc["shot_name"]["left_handed"] == "Straight"
         assert "shot_rank" in ogc
         assert "shot_color_rgb" in ogc
 
