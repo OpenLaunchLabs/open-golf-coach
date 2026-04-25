@@ -111,7 +111,6 @@ Output adds a `trajectory` block under `open_golf_coach`:
 ```json
 "open_golf_coach": {
   "carry_distance_meters": 185.4,
-  "...": "...",
   "trajectory": {
     "sample_rate_hz": 60,
     "points": [
