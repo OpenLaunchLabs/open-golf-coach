@@ -51,7 +51,11 @@ impl Trajectory {
 }
 
 /// Physics constants and ball properties
-const DELTA_TIME: f64 = 1.0 / 500.0; // 500 Hz update rate
+/// Native simulation rate of the trajectory integrator.
+/// Down-sampling and Unity/Unreal/Three.js callers reference this same
+/// constant so the rate cannot drift out of sync between modules.
+pub const NATIVE_RATE_HZ: f64 = 500.0;
+const DELTA_TIME: f64 = 1.0 / NATIVE_RATE_HZ;
 const BALL_DIAMETER: f64 = 0.04267; // meters
 const BALL_MASS: f64 = 0.04593; // kg
 const GRAVITY: f64 = 9.81; // m/s²

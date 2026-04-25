@@ -1,4 +1,4 @@
-use crate::trajectory::{Trajectory, TrajectoryPoint};
+use crate::trajectory::{Trajectory, TrajectoryPoint, NATIVE_RATE_HZ};
 use crate::vector::Vector3;
 use std::f64::consts::PI;
 
@@ -135,8 +135,6 @@ pub fn down_sample_trajectory(
     trajectory: &Trajectory,
     target_hz: f64,
 ) -> Vec<TrajectoryPoint> {
-    const NATIVE_RATE_HZ: f64 = 500.0;
-
     let native = &trajectory.points;
     if native.is_empty() {
         return Vec::new();

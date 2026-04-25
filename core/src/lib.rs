@@ -16,7 +16,7 @@ pub use bindings::{calculate_derived_values, calculate_derived_values_ffi};
 pub use clubhead_data::{
     estimate_club_face_path, estimate_clubhead_speed, get_smash_factor, ClubFacePathEstimates,
 };
-pub use trajectory::{calculate_trajectory, Trajectory, TrajectoryPoint};
+pub use trajectory::{calculate_trajectory, Trajectory, TrajectoryPoint, NATIVE_RATE_HZ};
 pub use trajectory_analysis::{
     down_sample_trajectory, get_apex_position, get_carry_distance, get_descent_angle,
     get_hang_time, get_landing_position, get_landing_velocity, get_offline_distance,
@@ -658,10 +658,9 @@ pub fn calculate_derived_values_from_input(input: &InputData) -> DerivedValues {
 
             if trajectory_requested {
                 // Resolve effective sample rate: requested value clamps into
-                // (0, 500]; missing or non-positive values fall back to the
-                // native 500 Hz simulation rate so we ship full fidelity by
-                // default.
-                const NATIVE_RATE_HZ: f64 = 500.0;
+                // (0, NATIVE_RATE_HZ]; missing or non-positive values fall
+                // back to the native simulation rate so we ship full fidelity
+                // by default.
                 let requested = input.trajectory_output_framerate_hz.unwrap_or(NATIVE_RATE_HZ);
                 let effective_rate = if requested.is_finite() && requested > 0.0 {
                     requested.min(NATIVE_RATE_HZ)
