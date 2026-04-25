@@ -16,9 +16,9 @@ These fields can be provided as input to the calculation:
 | `vertical_launch_angle_degrees` | float | degrees | Vertical launch angle | Yes* |
 | `horizontal_launch_angle_degrees` | float | degrees | Horizontal launch angle (0 = straight, negative = left for RH golfer) | No |
 | `total_spin_rpm` | float | RPM | Total spin rate | No** |
-| `spin_axis_degrees` | float | degrees | Spin axis (0 = pure backspin, positive = hook spin) | No** |
+| `spin_axis_degrees` | float | degrees | Spin axis (0 = pure backspin, positive = curves right of target line, i.e. slice/fade for a RH golfer) | No** |
 | `backspin_rpm` | float | RPM | Backspin component | No** |
-| `sidespin_rpm` | float | RPM | Sidespin component (positive = hook/right for RH golfer) | No** |
+| `sidespin_rpm` | float | RPM | Sidespin component (positive = right of target line, i.e. slice spin for a RH golfer) | No** |
 | `ball_speed_mph` | float | mph | Optional ball speed in mph. Converted to m/s if metric speed missing | No |
 | `club_speed_mph` | float | mph | Optional club speed in mph. Converted to m/s if metric speed missing | No |
 | `carry_distance_yards` (`carry_yards`) | float | yards | Optional carry distance in yards | No |
