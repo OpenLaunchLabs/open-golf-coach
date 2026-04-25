@@ -28,6 +28,8 @@ These fields can be provided as input to the calculation:
 | `landing_position_yards` | Vector3 | yards | Landing position vector in yards | No |
 | `landing_velocity_mph` | Vector3 | mph | Landing velocity vector in mph | No |
 | `us_customary_units` | object | mph/yards | Optional US customary inputs; converted to metric automatically | No |
+| `trajectory_enabled` | bool | — | Opt in to receiving the simulated ball trajectory under `open_golf_coach.trajectory` | No |
+| `trajectory_output_framerate_hz` | float | Hz | Down-sample rate for the emitted trajectory; clamped to `(0, 500]`. Defaults to native 500 Hz when enabled and omitted/non-positive | No |
 
 *Required for distance calculations
 **Provide either (total_spin + spin_axis) OR (backspin + sidespin)
@@ -94,3 +96,33 @@ When metric values are available, OpenGolfCoach automatically includes their US 
 The same structure can be supplied in the input. Any provided mph/yard values are converted to metric prior to
 calculation, and the output still reports the authoritative metric values while regenerating the
 `us_customary_units` block for convenience.
+
+#### Trajectory
+
+Emitted under `open_golf_coach.trajectory` only when the caller passes
+`trajectory_enabled: true`. The internal simulation runs at 500 Hz; the
+emitted points are linearly interpolated between native integrator steps at
+the requested `trajectory_output_framerate_hz` (default and maximum: 500).
+The first point is at `t = 0` and the last point is the landing frame
+(preserved exactly, never aliased away).
+
+| Field | Type | Unit | Description |
+|-------|------|------|-------------|
+| `sample_rate_hz` | float | Hz | Effective (post-clamp) emission rate |
+| `points` | array of TrajectoryPoint | — | Sampled flight points (see below) |
+
+`TrajectoryPoint`:
+
+| Field | Type | Unit | Description |
+|-------|------|------|-------------|
+| `t` | float | seconds | Time since start of flight |
+| `x` | float | meters | Forward position (along target line) |
+| `y` | float | meters | Right position |
+| `z` | float | meters | Up position |
+| `vx` | float | m/s | Forward velocity |
+| `vy` | float | m/s | Right velocity |
+| `vz` | float | m/s | Up velocity |
+
+Coordinate frame is left-handed: `+X` forward, `+Y` right, `+Z` up,
+origin at the ball's starting position. Matches Unreal natively. For Unity
+swizzle to `(y, z, x)`; for Three.js / glTF / WebGL swizzle to `(y, z, -x)`.

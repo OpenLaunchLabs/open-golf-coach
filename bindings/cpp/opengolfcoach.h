@@ -59,8 +59,11 @@ public:
  * @throws GolfCalculationError if calculation fails
  */
 inline std::string calculateDerivedValues(const std::string& json_input) {
-    // Allocate buffer for output (8KB should be plenty for golf shot JSON)
-    std::vector<char> buffer(8192);
+    // Allocate 1 MB for output. The basic derived-values payload fits in a
+    // few KB, but when the caller opts into trajectory output the response
+    // can carry several thousand points (~500 KB at native 500 Hz). 1 MB
+    // gives comfortable headroom for the worst case.
+    std::vector<char> buffer(1048576);
 
     int result = calculate_derived_values_ffi(
         json_input.c_str(),

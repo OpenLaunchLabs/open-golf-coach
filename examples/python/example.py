@@ -87,3 +87,27 @@ for i, shot in enumerate(shots, 1):
     print(f"  Shot {i}: {result['ball_speed_meters_per_second']:.0f} m/s, "
           f"{result['vertical_launch_angle_degrees']:.0f}° -> "
           f"{result['open_golf_coach']['carry_distance_meters']:.1f}m carry")
+
+# Example 5: Opt in to the simulated trajectory for animation
+print_section("Example 5: Trajectory output for animation (60 Hz)")
+
+shot5 = {
+    "ball_speed_meters_per_second": 70.0,
+    "vertical_launch_angle_degrees": 12.5,
+    "horizontal_launch_angle_degrees": -2.0,
+    "total_spin_rpm": 2800.0,
+    "spin_axis_degrees": 15.0,
+    "trajectory_enabled": True,
+    "trajectory_output_framerate_hz": 60,
+}
+
+result5 = json.loads(opengolfcoach.calculate_derived_values(json.dumps(shot5)))
+trajectory = result5["open_golf_coach"]["trajectory"]
+print(f"  sample_rate_hz: {trajectory['sample_rate_hz']}")
+print(f"  point count:    {len(trajectory['points'])}")
+print("  first 3 points:")
+for p in trajectory["points"][:3]:
+    print(f"    t={p['t']:.4f}  x={p['x']:.3f}  y={p['y']:.3f}  z={p['z']:.3f}")
+last = trajectory["points"][-1]
+print("  landing:")
+print(f"    t={last['t']:.4f}  x={last['x']:.3f}  y={last['y']:.3f}  z={last['z']:.3f}")

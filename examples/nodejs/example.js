@@ -79,3 +79,34 @@ console.log(JSON.stringify(result3, null, 2));
 console.log('\nDerived values:');
 console.log(`  Carry distance: ${result3.open_golf_coach.carry_distance_meters.toFixed(2)} meters`);
 console.log(`  Offline distance: ${result3.open_golf_coach.offline_distance_meters.toFixed(2)} meters`);
+
+// Example 4: Opt in to the simulated trajectory for animation
+console.log('\n\nExample 4: Trajectory output for animation (60 Hz)');
+console.log('='.repeat(60));
+
+const shot4 = {
+  ball_speed_meters_per_second: 70.0,
+  vertical_launch_angle_degrees: 12.5,
+  horizontal_launch_angle_degrees: -2.0,
+  total_spin_rpm: 2800.0,
+  spin_axis_degrees: 15.0,
+  trajectory_enabled: true,
+  trajectory_output_framerate_hz: 60
+};
+
+const result4 = calculateDerivedValues(shot4);
+const trajectory = result4.open_golf_coach.trajectory;
+
+console.log(`  sample_rate_hz: ${trajectory.sample_rate_hz}`);
+console.log(`  point count:    ${trajectory.points.length}`);
+console.log('  first 3 points:');
+for (const p of trajectory.points.slice(0, 3)) {
+  console.log(`    t=${p.t.toFixed(4)}  x=${p.x.toFixed(3)}  y=${p.y.toFixed(3)}  z=${p.z.toFixed(3)}`);
+}
+const last = trajectory.points[trajectory.points.length - 1];
+console.log(`  landing:`);
+console.log(`    t=${last.t.toFixed(4)}  x=${last.x.toFixed(3)}  y=${last.y.toFixed(3)}  z=${last.z.toFixed(3)}`);
+
+// To consume in Three.js / glTF / WebGL native frame, swizzle each point to
+// (p.y, p.z, -p.x). For Unity, swizzle to (p.y, p.z, p.x). Unreal can use
+// the points as-is (matching coordinate frame).

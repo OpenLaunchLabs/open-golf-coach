@@ -27,6 +27,41 @@ export interface Handed<T> {
 }
 
 /**
+ * One sampled point along the simulated ball trajectory.
+ *
+ * Coordinates: +X forward (target line), +Y right, +Z up. Matches Unreal
+ * directly. For Unity, swizzle to `(p.y, p.z, p.x)`. For Three.js / glTF,
+ * swizzle to `(p.y, p.z, -p.x)`.
+ */
+export interface TrajectoryPoint {
+  /** Time since start of flight, in seconds */
+  t: number;
+  /** Forward position (m) */
+  x: number;
+  /** Right position (m) */
+  y: number;
+  /** Up position (m) */
+  z: number;
+  /** Forward velocity (m/s) */
+  vx: number;
+  /** Right velocity (m/s) */
+  vy: number;
+  /** Up velocity (m/s) */
+  vz: number;
+}
+
+/**
+ * Sampled ball trajectory, emitted under `open_golf_coach.trajectory` when
+ * `trajectory_enabled` is `true`. The internal simulation runs at 500 Hz;
+ * `sample_rate_hz` is the (effective, post-clamp) emission rate, and points
+ * are linearly interpolated between native integrator steps.
+ */
+export interface Trajectory {
+  sample_rate_hz: number;
+  points: TrajectoryPoint[];
+}
+
+/**
  * Golf shot data structure
  */
 export interface GolfShot {
@@ -110,6 +145,25 @@ export interface GolfShot {
 
   /** Convenience US customary conversions */
   us_customary_units?: USCustomaryUnits;
+
+  /**
+   * Opt in to receiving the simulated ball trajectory under
+   * `open_golf_coach.trajectory`. Default `false`.
+   */
+  trajectory_enabled?: boolean;
+
+  /**
+   * Down-sample rate for the emitted trajectory, in Hz. Clamped to
+   * (0, 500]. Defaults to 500 (native simulation rate) when
+   * `trajectory_enabled` is `true` and this is omitted or non-positive.
+   */
+  trajectory_output_framerate_hz?: number;
+
+  /**
+   * Sampled ball trajectory. Present only when `trajectory_enabled` was
+   * set to `true` on input.
+   */
+  trajectory?: Trajectory;
 }
 
 /**

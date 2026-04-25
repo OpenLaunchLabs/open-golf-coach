@@ -39,6 +39,36 @@ class HandedFloat(TypedDict):
     left_handed: float
 
 
+class TrajectoryPoint(TypedDict):
+    """One sampled point along the simulated ball trajectory.
+
+    Coordinates: +X forward (target line), +Y right, +Z up. Matches Unreal
+    directly. For Unity, swizzle to (p['y'], p['z'], p['x']). For Three.js,
+    swizzle to (p['y'], p['z'], -p['x']).
+    """
+
+    t: float  # seconds since start of flight
+    x: float  # forward position, meters
+    y: float  # right position, meters
+    z: float  # up position, meters
+    vx: float  # forward velocity, m/s
+    vy: float  # right velocity, m/s
+    vz: float  # up velocity, m/s
+
+
+class Trajectory(TypedDict):
+    """Sampled ball trajectory.
+
+    Emitted under ``open_golf_coach.trajectory`` when the caller passes
+    ``trajectory_enabled=True``. The internal simulation runs at 500 Hz;
+    ``sample_rate_hz`` is the (effective, post-clamp) emission rate, and
+    points are linearly interpolated between native integrator steps.
+    """
+
+    sample_rate_hz: float
+    points: list[TrajectoryPoint]
+
+
 class DerivedValues(TypedDict, total=False):
     """Derived values calculated by OpenGolfCoach.
 
@@ -75,6 +105,7 @@ class DerivedValues(TypedDict, total=False):
     elevation_meters: float
     temperature_kelvin: float
     humidity_percent: float
+    trajectory: Trajectory
 
 
 def calculate_derived_values(json_input: str) -> str:
@@ -95,6 +126,11 @@ def calculate_derived_values(json_input: str) -> str:
             - backspin_rpm (float, optional)
             - sidespin_rpm (float, optional)
             - us_customary_units (dict, optional) - for mph/yards input
+            - trajectory_enabled (bool, optional) - opt in to receiving the
+              simulated ball trajectory under ``open_golf_coach.trajectory``
+            - trajectory_output_framerate_hz (float, optional) - down-sample
+              rate for the emitted trajectory, clamped to (0, 500]; defaults
+              to the native 500 Hz simulation rate
 
     Returns:
         JSON string with original values plus "open_golf_coach" section

@@ -16,11 +16,11 @@ pub use bindings::{calculate_derived_values, calculate_derived_values_ffi};
 pub use clubhead_data::{
     estimate_club_face_path, estimate_clubhead_speed, get_smash_factor, ClubFacePathEstimates,
 };
-pub use trajectory::{calculate_trajectory, Trajectory, TrajectoryPoint};
+pub use trajectory::{calculate_trajectory, Trajectory, TrajectoryPoint, NATIVE_RATE_HZ};
 pub use trajectory_analysis::{
-    get_apex_position, get_carry_distance, get_descent_angle, get_hang_time, get_landing_position,
-    get_landing_velocity, get_offline_distance, get_peak_height, get_time_to_apex,
-    get_total_distance,
+    down_sample_trajectory, get_apex_position, get_carry_distance, get_descent_angle,
+    get_hang_time, get_landing_position, get_landing_velocity, get_offline_distance,
+    get_peak_height, get_time_to_apex, get_total_distance,
 };
 pub use vector::Vector3;
 
@@ -45,6 +45,18 @@ use serde_json::Value;
 pub struct Handed<T> {
     pub right_handed: T,
     pub left_handed: T,
+}
+
+/// Sampled ball trajectory. Emitted under `open_golf_coach.trajectory` when
+/// the caller opts in via `trajectory_enabled`. The internal simulation runs
+/// at 500 Hz; `sample_rate_hz` is the (effective, post-clamp) rate at which
+/// the points were emitted, and the points are linearly interpolated between
+/// native integrator steps. Coordinates: +X forward, +Y right, +Z up
+/// (left-handed; matches Unreal natively, swizzle for Unity / Three.js).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrajectoryOutput {
+    pub sample_rate_hz: f64,
+    pub points: Vec<TrajectoryPoint>,
 }
 
 /// Derived values calculated by OpenGolfCoach
@@ -135,6 +147,9 @@ pub struct DerivedValues {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub humidity_percent: Option<f64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trajectory: Option<TrajectoryOutput>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -224,6 +239,7 @@ impl DerivedValues {
             elevation_meters: None,
             temperature_kelvin: None,
             humidity_percent: None,
+            trajectory: None,
         }
     }
 
@@ -354,100 +370,127 @@ fn apply_us_unit_inputs(derived: &mut DerivedValues, units: &InputUSCustomaryUni
     }
 }
 
-/// Input data structure for reading values from JSON
-#[derive(Debug, Clone, Deserialize)]
+/// Input data structure for reading values from JSON.
+///
+/// Fields are public and `Default::default()` returns an all-`None` instance,
+/// so Rust callers can construct an `InputData` directly without going
+/// through JSON:
+///
+/// ```ignore
+/// use opengolfcoach::{calculate_derived_values_from_input, InputData};
+///
+/// let input = InputData {
+///     ball_speed_meters_per_second: Some(70.0),
+///     vertical_launch_angle_degrees: Some(12.5),
+///     trajectory_enabled: Some(true),
+///     ..Default::default()
+/// };
+/// let derived = calculate_derived_values_from_input(&input);
+/// ```
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct InputData {
     #[serde(default)]
-    ball_speed_meters_per_second: Option<f64>,
+    pub ball_speed_meters_per_second: Option<f64>,
 
     #[serde(default)]
-    ball_speed_mph: Option<f64>,
+    pub ball_speed_mph: Option<f64>,
 
     #[serde(default)]
-    vertical_launch_angle_degrees: Option<f64>,
+    pub vertical_launch_angle_degrees: Option<f64>,
 
     #[serde(default)]
-    horizontal_launch_angle_degrees: Option<f64>,
+    pub horizontal_launch_angle_degrees: Option<f64>,
 
     #[serde(default)]
-    total_spin_rpm: Option<f64>,
+    pub total_spin_rpm: Option<f64>,
 
     #[serde(default)]
-    spin_axis_degrees: Option<f64>,
+    pub spin_axis_degrees: Option<f64>,
 
     #[serde(default)]
-    backspin_rpm: Option<f64>,
+    pub backspin_rpm: Option<f64>,
 
     #[serde(default)]
-    sidespin_rpm: Option<f64>,
+    pub sidespin_rpm: Option<f64>,
 
     #[serde(default)]
-    club_speed_meters_per_second: Option<f64>,
+    pub club_speed_meters_per_second: Option<f64>,
 
     #[serde(default)]
-    club_speed_mph: Option<f64>,
+    pub club_speed_mph: Option<f64>,
 
     #[serde(default, alias = "carry_yards")]
-    carry_distance_yards: Option<f64>,
+    pub carry_distance_yards: Option<f64>,
 
     #[serde(default, alias = "total_yards")]
-    total_distance_yards: Option<f64>,
+    pub total_distance_yards: Option<f64>,
 
     #[serde(default, alias = "offline_yards")]
-    offline_distance_yards: Option<f64>,
+    pub offline_distance_yards: Option<f64>,
 
     #[serde(default)]
-    peak_height_yards: Option<f64>,
+    pub peak_height_yards: Option<f64>,
 
     #[serde(default)]
-    landing_position_yards: Option<Vector3>,
+    pub landing_position_yards: Option<Vector3>,
 
     #[serde(default)]
-    landing_velocity_mph: Option<Vector3>,
+    pub landing_velocity_mph: Option<Vector3>,
 
     // Derived outputs that may come from external sources
     #[serde(default)]
-    landing_position: Option<Vector3>,
+    pub landing_position: Option<Vector3>,
 
     #[serde(default)]
-    landing_velocity: Option<Vector3>,
+    pub landing_velocity: Option<Vector3>,
 
     #[serde(default)]
-    carry_distance_meters: Option<f64>,
+    pub carry_distance_meters: Option<f64>,
 
     #[serde(default)]
-    total_distance_meters: Option<f64>,
+    pub total_distance_meters: Option<f64>,
 
     #[serde(default)]
-    offline_distance_meters: Option<f64>,
+    pub offline_distance_meters: Option<f64>,
 
     #[serde(default)]
-    descent_angle_degrees: Option<f64>,
+    pub descent_angle_degrees: Option<f64>,
 
     #[serde(default)]
-    hang_time_seconds: Option<f64>,
+    pub hang_time_seconds: Option<f64>,
 
     #[serde(default)]
-    peak_height_meters: Option<f64>,
+    pub peak_height_meters: Option<f64>,
 
     #[serde(default)]
-    smash_factor: Option<f64>,
+    pub smash_factor: Option<f64>,
 
     // Environmental conditions
     #[serde(default)]
-    pressure_pascals: Option<f64>,
+    pub pressure_pascals: Option<f64>,
 
     #[serde(default)]
-    elevation_meters: Option<f64>,
+    pub elevation_meters: Option<f64>,
 
     #[serde(default)]
-    temperature_kelvin: Option<f64>,
+    pub temperature_kelvin: Option<f64>,
 
     #[serde(default)]
-    humidity_percent: Option<f64>,
+    pub humidity_percent: Option<f64>,
 
     #[serde(default)]
-    us_customary_units: Option<InputUSCustomaryUnits>,
+    pub us_customary_units: Option<InputUSCustomaryUnits>,
+
+    /// Opt in to receiving the simulated ball trajectory under
+    /// `open_golf_coach.trajectory`. Default `false`.
+    #[serde(default)]
+    pub trajectory_enabled: Option<bool>,
+
+    /// Down-sample rate for the emitted trajectory, in Hz. Clamped to
+    /// `(0, 500]`. If `trajectory_enabled` is `true` and this is `None` or
+    /// `<= 0.0`, the native simulation rate (500 Hz) is used.
+    #[serde(default)]
+    pub trajectory_output_framerate_hz: Option<f64>,
 }
 
 /// Calculate all derived values from input data
@@ -562,7 +605,10 @@ pub fn calculate_derived_values_from_input(input: &InputData) -> DerivedValues {
         let should_output_pressure = input.pressure_pascals.is_none();
 
         // Only calculate trajectory if we need any trajectory-derived values
-        let needs_trajectory = derived.landing_position.is_none()
+        // OR the caller explicitly requested the trajectory output.
+        let trajectory_requested = matches!(input.trajectory_enabled, Some(true));
+        let needs_trajectory = trajectory_requested
+            || derived.landing_position.is_none()
             || derived.landing_velocity.is_none()
             || derived.carry_distance_meters.is_none()
             || derived.total_distance_meters.is_none()
@@ -608,6 +654,24 @@ pub fn calculate_derived_values_from_input(input: &InputData) -> DerivedValues {
             }
             if derived.landing_velocity.is_none() {
                 derived.landing_velocity = Some(get_landing_velocity(&trajectory));
+            }
+
+            if trajectory_requested {
+                // Resolve effective sample rate: requested value clamps into
+                // (0, NATIVE_RATE_HZ]; missing or non-positive values fall
+                // back to the native simulation rate so we ship full fidelity
+                // by default.
+                let requested = input.trajectory_output_framerate_hz.unwrap_or(NATIVE_RATE_HZ);
+                let effective_rate = if requested.is_finite() && requested > 0.0 {
+                    requested.min(NATIVE_RATE_HZ)
+                } else {
+                    NATIVE_RATE_HZ
+                };
+                let points = down_sample_trajectory(&trajectory, effective_rate);
+                derived.trajectory = Some(TrajectoryOutput {
+                    sample_rate_hz: effective_rate,
+                    points,
+                });
             }
         }
 
@@ -1258,5 +1322,193 @@ mod tests {
         );
         let carry_yd = get_carry_distance(&trajectory) * METERS_TO_YARDS;
         assert_carry_within_pct(carry_yd, 108.0, 3.0, "Amateur PW");
+    }
+
+    fn baseline_shot_json() -> &'static str {
+        r#"{
+            "ball_speed_meters_per_second": 70.0,
+            "vertical_launch_angle_degrees": 12.0,
+            "horizontal_launch_angle_degrees": -2.0,
+            "total_spin_rpm": 2800.0,
+            "spin_axis_degrees": 15.0
+        }"#
+    }
+
+    #[test]
+    fn test_trajectory_omitted_by_default() {
+        let result = calculate_derived_values(baseline_shot_json()).unwrap();
+        let output: Value = serde_json::from_str(&result).unwrap();
+        assert!(
+            output["open_golf_coach"].get("trajectory").is_none(),
+            "trajectory should not be present when not requested"
+        );
+    }
+
+    #[test]
+    fn test_trajectory_emitted_at_default_rate() {
+        let json_input = r#"{
+            "ball_speed_meters_per_second": 70.0,
+            "vertical_launch_angle_degrees": 12.0,
+            "horizontal_launch_angle_degrees": -2.0,
+            "total_spin_rpm": 2800.0,
+            "spin_axis_degrees": 15.0,
+            "trajectory_enabled": true
+        }"#;
+        let result = calculate_derived_values(json_input).unwrap();
+        let output: Value = serde_json::from_str(&result).unwrap();
+        let traj = &output["open_golf_coach"]["trajectory"];
+        assert!(traj.is_object(), "trajectory should be an object");
+        assert_eq!(traj["sample_rate_hz"].as_f64().unwrap(), 500.0);
+        let points = traj["points"].as_array().expect("points array");
+        assert!(points.len() > 100, "default rate should yield many points");
+        let first = &points[0];
+        assert!(first["t"].as_f64().unwrap().abs() < 1e-6);
+        assert!(first["x"].as_f64().unwrap().abs() < 1e-6);
+        assert!(first["z"].as_f64().unwrap().abs() < 1e-6);
+        let last = &points[points.len() - 1];
+        assert!(
+            last["z"].as_f64().unwrap().abs() < 0.5,
+            "last point z {} should be near ground",
+            last["z"]
+        );
+    }
+
+    #[test]
+    fn test_trajectory_emitted_at_requested_rate() {
+        let json_input = r#"{
+            "ball_speed_meters_per_second": 70.0,
+            "vertical_launch_angle_degrees": 12.0,
+            "horizontal_launch_angle_degrees": -2.0,
+            "total_spin_rpm": 2800.0,
+            "spin_axis_degrees": 15.0,
+            "trajectory_enabled": true,
+            "trajectory_output_framerate_hz": 60.0
+        }"#;
+        let result = calculate_derived_values(json_input).unwrap();
+        let output: Value = serde_json::from_str(&result).unwrap();
+        let derived = &output["open_golf_coach"];
+        let traj = &derived["trajectory"];
+        assert_eq!(traj["sample_rate_hz"].as_f64().unwrap(), 60.0);
+        let points = traj["points"].as_array().expect("points array");
+        assert!(points.len() >= 2);
+
+        // First sample at t=0, last at hang time.
+        assert!(points[0]["t"].as_f64().unwrap().abs() < 1e-6);
+        let hang_time = derived["hang_time_seconds"].as_f64().unwrap();
+        let last_t = points[points.len() - 1]["t"].as_f64().unwrap();
+        assert!(
+            (last_t - hang_time).abs() < 0.05,
+            "last sample t={} should be within one frame of hang_time={}",
+            last_t,
+            hang_time
+        );
+
+        // Interior samples should be ~1/60 s apart (skip the final
+        // landing-snap point, whose spacing may be shorter).
+        let dt = 1.0 / 60.0;
+        for win in points.windows(2).take(points.len().saturating_sub(2)) {
+            let delta = win[1]["t"].as_f64().unwrap() - win[0]["t"].as_f64().unwrap();
+            assert!(
+                (delta - dt).abs() < 1e-6,
+                "interior frame spacing {} should equal {}",
+                delta,
+                dt
+            );
+        }
+    }
+
+    #[test]
+    fn test_trajectory_clamped_to_native_rate() {
+        let json_input = r#"{
+            "ball_speed_meters_per_second": 70.0,
+            "vertical_launch_angle_degrees": 12.0,
+            "total_spin_rpm": 2800.0,
+            "spin_axis_degrees": 15.0,
+            "trajectory_enabled": true,
+            "trajectory_output_framerate_hz": 5000.0
+        }"#;
+        let result = calculate_derived_values(json_input).unwrap();
+        let output: Value = serde_json::from_str(&result).unwrap();
+        let traj = &output["open_golf_coach"]["trajectory"];
+        assert_eq!(
+            traj["sample_rate_hz"].as_f64().unwrap(),
+            500.0,
+            "rate above native should clamp to 500"
+        );
+    }
+
+    #[test]
+    fn test_trajectory_disabled_explicitly() {
+        let json_input = r#"{
+            "ball_speed_meters_per_second": 70.0,
+            "vertical_launch_angle_degrees": 12.0,
+            "total_spin_rpm": 2800.0,
+            "spin_axis_degrees": 15.0,
+            "trajectory_enabled": false,
+            "trajectory_output_framerate_hz": 60.0
+        }"#;
+        let result = calculate_derived_values(json_input).unwrap();
+        let output: Value = serde_json::from_str(&result).unwrap();
+        assert!(
+            output["open_golf_coach"].get("trajectory").is_none(),
+            "trajectory should be absent when explicitly disabled"
+        );
+    }
+
+    #[test]
+    fn test_trajectory_zero_or_negative_rate_uses_default() {
+        for bad_rate in [0.0_f64, -1.0_f64] {
+            let json_input = format!(
+                r#"{{
+                    "ball_speed_meters_per_second": 70.0,
+                    "vertical_launch_angle_degrees": 12.0,
+                    "total_spin_rpm": 2800.0,
+                    "spin_axis_degrees": 15.0,
+                    "trajectory_enabled": true,
+                    "trajectory_output_framerate_hz": {}
+                }}"#,
+                bad_rate
+            );
+            let result = calculate_derived_values(&json_input).unwrap();
+            let output: Value = serde_json::from_str(&result).unwrap();
+            let traj = &output["open_golf_coach"]["trajectory"];
+            assert_eq!(
+                traj["sample_rate_hz"].as_f64().unwrap(),
+                500.0,
+                "non-positive rate {} should fall back to native 500",
+                bad_rate
+            );
+        }
+    }
+
+    #[test]
+    fn test_typed_rust_api_no_json() {
+        // Round-trip end-to-end via the typed Rust path: construct InputData
+        // with a struct literal, run the derivation, read TrajectoryOutput
+        // back as typed Rust values. No serde_json anywhere in this test.
+        let input = InputData {
+            ball_speed_meters_per_second: Some(70.0),
+            vertical_launch_angle_degrees: Some(12.0),
+            horizontal_launch_angle_degrees: Some(-2.0),
+            total_spin_rpm: Some(2800.0),
+            spin_axis_degrees: Some(15.0),
+            trajectory_enabled: Some(true),
+            trajectory_output_framerate_hz: Some(60.0),
+            ..Default::default()
+        };
+        let derived = calculate_derived_values_from_input(&input);
+        let traj = derived.trajectory.expect("trajectory was requested");
+        assert_eq!(traj.sample_rate_hz, 60.0);
+        assert!(traj.points.len() >= 2);
+        let first = traj.points.first().unwrap();
+        assert!(first.t.abs() < 1e-9);
+        assert!(first.x.abs() < 1e-9);
+        assert!(first.z.abs() < 1e-9);
+        let last = traj.points.last().unwrap();
+        assert!(
+            last.z.abs() < 0.5,
+            "landing z={} should be near ground",
+            last.z
+        );
     }
 }
