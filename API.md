@@ -56,8 +56,8 @@ scalars.
 | `us_customary_units` | object | varies | Convenience conversions (see below) |
 
 `horizontal_launch_angle_degrees`, `spin_axis_degrees`, and `sidespin_rpm`
-follow the input's sign convention (positive = right of target line and are NOT wrapped — they
-describe objective physics.
+follow the input's sign convention (positive = right of target line) and are
+NOT wrapped — they describe objective physics.
 
 #### Hand-dependent (`{ right_handed, left_handed }`)
 
