@@ -61,7 +61,11 @@ NOT wrapped — they describe objective physics.
 
 #### Hand-dependent (`{ right_handed, left_handed }`)
 
-These six fields each carry both perspectives. Both are always populated.
+These six fields are included only when they can be computed from the
+provided and/or derived data (e.g., `club_path_degrees` requires a
+horizontal launch angle; shot classification requires spin inputs). When
+present, each field carries both perspectives as `{ right_handed,
+left_handed }`.
 
 | Field | Inner type | Description |
 |-------|------------|-------------|
