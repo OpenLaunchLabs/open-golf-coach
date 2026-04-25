@@ -730,7 +730,7 @@ pub fn calculate_derived_values_from_input(input: &InputData) -> DerivedValues {
 ///
 /// # Arguments
 /// * `total_spin_rpm` - Total spin rate in RPM
-/// * `spin_axis_degrees` - Spin axis angle in degrees (0 = pure backspin, positive = hook spin)
+/// * `spin_axis_degrees` - Spin axis angle in degrees (0 = pure backspin, positive = curves right of target line, i.e. slice/fade for a RH golfer)
 ///
 /// # Returns
 /// (backspin_rpm, sidespin_rpm)
@@ -750,7 +750,7 @@ pub fn calculate_spin_components(total_spin_rpm: f64, spin_axis_degrees: f64) ->
 ///
 /// # Arguments
 /// * `backspin_rpm` - Backspin rate in RPM
-/// * `sidespin_rpm` - Sidespin rate in RPM (positive = hook/right spin for RH golfer)
+/// * `sidespin_rpm` - Sidespin rate in RPM (positive = right of target line, i.e. slice spin for a RH golfer)
 ///
 /// # Returns
 /// (total_spin_rpm, spin_axis_degrees)
