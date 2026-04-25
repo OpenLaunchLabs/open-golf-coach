@@ -63,25 +63,27 @@ The library adds derived values to the input:
   "horizontal_launch_angle_degrees": -2.0,
   "total_spin_rpm": 2800.0,
   "spin_axis_degrees": 15.0,
-  "carry_distance_meters": 185.4,
-  "total_distance_meters": 201.7,
-  "offline_distance_meters": -6.2,
-  "backspin_rpm": 2700.5,
-  "sidespin_rpm": 724.8,
-  "club_speed_meters_per_second": 47.4,
-  "smash_factor": 1.48,
-  "club_path_degrees":           { "right_handed": -4.6, "left_handed":  4.6 },
-  "club_face_to_target_degrees": { "right_handed": -0.4, "left_handed":  0.4 },
-  "club_face_to_path_degrees":   { "right_handed":  4.2, "left_handed": -4.2 },
-  "shot_name":                   { "right_handed": "Straight Slice", "left_handed": "Straight Hook" },
-  "shot_rank":                   { "right_handed": "D",        "left_handed": "D" },
-  "shot_color_rgb":              { "right_handed": "0xFF7043", "left_handed": "0xFF7043" },
-  "us_customary_units": {
-    "ball_speed_mph": 156.6,
-    "club_speed_mph": 106.1,
-    "carry_distance_yards": 202.9,
-    "total_distance_yards": 220.6,
-    "offline_distance_yards": -6.8
+  "open_golf_coach": {
+    "carry_distance_meters": 185.4,
+    "total_distance_meters": 201.7,
+    "offline_distance_meters": -6.2,
+    "backspin_rpm": 2700.5,
+    "sidespin_rpm": 724.8,
+    "club_speed_meters_per_second": 47.4,
+    "smash_factor": 1.48,
+    "club_path_degrees":           { "right_handed": -4.6, "left_handed":  4.6 },
+    "club_face_to_target_degrees": { "right_handed": -0.4, "left_handed":  0.4 },
+    "club_face_to_path_degrees":   { "right_handed":  4.2, "left_handed": -4.2 },
+    "shot_name":                   { "right_handed": "Straight Slice", "left_handed": "Straight Hook" },
+    "shot_rank":                   { "right_handed": "D",        "left_handed": "D" },
+    "shot_color_rgb":              { "right_handed": "0xFF7043", "left_handed": "0xFF7043" },
+    "us_customary_units": {
+      "ball_speed_mph": 156.6,
+      "club_speed_mph": 106.1,
+      "carry_distance_yards": 202.9,
+      "total_distance_yards": 220.6,
+      "offline_distance_yards": -6.8
+    }
   }
 }
 ```
