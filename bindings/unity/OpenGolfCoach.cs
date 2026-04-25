@@ -181,7 +181,21 @@ namespace OpenGolfCoach
 
             // Parse output JSON
             string jsonOutput = output.ToString();
-            return JsonUtility.FromJson<GolfShotData>(jsonOutput);
+            GolfShotData parsed = JsonUtility.FromJson<GolfShotData>(jsonOutput);
+
+            // JsonUtility.FromJson does not invoke constructors, so hand-dependent
+            // fields the Rust core omits (Option::None) deserialize as null.
+            // Replace nulls with default instances so consumers can read both
+            // perspectives without null-checking every field.
+            parsed.club_path_degrees ??= new HandedFloat();
+            parsed.club_face_to_target_degrees ??= new HandedFloat();
+            parsed.club_face_to_path_degrees ??= new HandedFloat();
+            parsed.shot_name ??= new HandedString();
+            parsed.shot_rank ??= new HandedString();
+            parsed.shot_color_rgb ??= new HandedString();
+            parsed.us_customary_units ??= new USCustomaryUnits();
+
+            return parsed;
         }
 
         /// <summary>
