@@ -159,7 +159,11 @@ jobs:
       - name: Install wheel
         shell: bash
         run: |
-          pip install --find-links dist opengolfcoach pytest
+          # --no-index forces resolution from dist/ only, so we test the
+          # freshly built wheel rather than a same-version wheel that might
+          # already exist on PyPI.
+          pip install --find-links dist --no-index opengolfcoach
+          pip install pytest
 
       - name: Run tests
         working-directory: bindings/python
