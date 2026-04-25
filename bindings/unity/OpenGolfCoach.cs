@@ -41,6 +41,25 @@ namespace OpenGolfCoach
         public HandedString shot_color_rgb;
         public USCustomaryUnits us_customary_units;
 
+        /// <summary>
+        /// Set to true to opt in to receiving the simulated ball trajectory
+        /// in <see cref="trajectory"/>. Default false.
+        /// </summary>
+        public bool trajectory_enabled;
+
+        /// <summary>
+        /// Down-sample rate for the emitted trajectory, in Hz. Clamped to
+        /// (0, 500]. When <see cref="trajectory_enabled"/> is true and this
+        /// is 0 or negative, the native 500 Hz simulation rate is used.
+        /// </summary>
+        public float trajectory_output_framerate_hz;
+
+        /// <summary>
+        /// Sampled ball trajectory. Populated only when
+        /// <see cref="trajectory_enabled"/> was set to true on input.
+        /// </summary>
+        public Trajectory trajectory;
+
         public GolfShotData()
         {
             ball_speed_meters_per_second = 0f;
@@ -70,6 +89,47 @@ namespace OpenGolfCoach
             shot_rank = new HandedString();
             shot_color_rgb = new HandedString();
             us_customary_units = new USCustomaryUnits();
+            trajectory_enabled = false;
+            trajectory_output_framerate_hz = 0f;
+            trajectory = new Trajectory();
+        }
+    }
+
+    /// <summary>
+    /// One sampled point along the simulated ball trajectory.
+    ///
+    /// Coordinates: +X forward (target line), +Y right, +Z up. Matches Unreal
+    /// directly. To consume in Unity's native frame (Y-up, Z-forward), swizzle
+    /// to <c>new UnityEngine.Vector3(point.y, point.z, point.x)</c>.
+    /// </summary>
+    [Serializable]
+    public class TrajectoryPoint
+    {
+        public float t;
+        public float x;
+        public float y;
+        public float z;
+        public float vx;
+        public float vy;
+        public float vz;
+    }
+
+    /// <summary>
+    /// Sampled ball trajectory. The internal simulation runs at 500 Hz;
+    /// <see cref="sample_rate_hz"/> is the (effective, post-clamp) emission
+    /// rate, and points are linearly interpolated between native integrator
+    /// steps.
+    /// </summary>
+    [Serializable]
+    public class Trajectory
+    {
+        public float sample_rate_hz;
+        public TrajectoryPoint[] points;
+
+        public Trajectory()
+        {
+            sample_rate_hz = 0f;
+            points = new TrajectoryPoint[0];
         }
     }
 
@@ -159,8 +219,11 @@ namespace OpenGolfCoach
             // Convert to JSON
             string jsonInput = JsonUtility.ToJson(shotData);
 
-            // Call native function
-            StringBuilder output = new StringBuilder(8192);
+            // Call native function. Allocate 1 MB for the response: the
+            // basic derived-values payload fits in a few KB, but enabling
+            // trajectory output can carry several thousand points
+            // (~500 KB at native 500 Hz). 1 MB gives worst-case headroom.
+            StringBuilder output = new StringBuilder(1048576);
             int result = CalculateDerivedValuesFFI(jsonInput, output, output.Capacity);
 
             if (result != 0)
@@ -194,6 +257,7 @@ namespace OpenGolfCoach
             parsed.shot_rank ??= new HandedString();
             parsed.shot_color_rgb ??= new HandedString();
             parsed.us_customary_units ??= new USCustomaryUnits();
+            parsed.trajectory ??= new Trajectory();
 
             return parsed;
         }

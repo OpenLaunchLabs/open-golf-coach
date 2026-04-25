@@ -1,4 +1,4 @@
-use crate::trajectory::Trajectory;
+use crate::trajectory::{Trajectory, TrajectoryPoint};
 use crate::vector::Vector3;
 use std::f64::consts::PI;
 
@@ -121,4 +121,166 @@ pub fn get_total_distance(trajectory: &Trajectory) -> f64 {
     let roll_vector = Vector3::new(heading.x * roll_distance, heading.y * roll_distance, 0.0);
     let total_vector = landing_pos.add(&roll_vector);
     total_vector.magnitude()
+}
+
+/// Down-sample a native-rate `Trajectory` to `target_hz` by linearly
+/// interpolating each emitted point between the bracketing native steps.
+///
+/// The first emitted point is at `t = 0`, subsequent points fall on
+/// `k / target_hz` for `k = 1, 2, …` up to the last native time, and the
+/// final native point (the landing frame) is always preserved so the landing
+/// isn't aliased away. If `target_hz` is non-finite, non-positive, or at
+/// least the native rate (500 Hz), the native points are returned unchanged.
+pub fn down_sample_trajectory(
+    trajectory: &Trajectory,
+    target_hz: f64,
+) -> Vec<TrajectoryPoint> {
+    const NATIVE_RATE_HZ: f64 = 500.0;
+
+    let native = &trajectory.points;
+    if native.is_empty() {
+        return Vec::new();
+    }
+    if !target_hz.is_finite() || target_hz <= 0.0 || target_hz >= NATIVE_RATE_HZ {
+        return native.clone();
+    }
+
+    let dt = 1.0 / target_hz;
+    let last_t = native.last().unwrap().t;
+    let mut out: Vec<TrajectoryPoint> = Vec::with_capacity(((last_t * target_hz) as usize) + 2);
+    let mut cursor = 0usize;
+
+    let mut k = 0u64;
+    loop {
+        let sample_t = (k as f64) * dt;
+        if sample_t > last_t {
+            break;
+        }
+        // Advance cursor so that native[cursor].t <= sample_t < native[cursor+1].t,
+        // or cursor == native.len() - 1 at the end.
+        while cursor + 1 < native.len() && native[cursor + 1].t <= sample_t {
+            cursor += 1;
+        }
+        if cursor + 1 >= native.len() {
+            out.push(native[cursor]);
+        } else {
+            let a = &native[cursor];
+            let b = &native[cursor + 1];
+            let span = b.t - a.t;
+            let frac = if span > 0.0 {
+                ((sample_t - a.t) / span).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            out.push(lerp_point(a, b, frac, sample_t));
+        }
+        k += 1;
+    }
+
+    // Always preserve the final native point (the landing frame). If the last
+    // sampled time fell short of `last_t`, append it; if it landed exactly on
+    // the last sample (rare but possible), replace it with the canonical
+    // landing point so x/y/z/v* match the integrator's final state.
+    let last_native = *native.last().unwrap();
+    match out.last() {
+        Some(p) if (p.t - last_native.t).abs() < 1e-9 => {
+            *out.last_mut().unwrap() = last_native;
+        }
+        _ => out.push(last_native),
+    }
+
+    out
+}
+
+fn lerp_point(a: &TrajectoryPoint, b: &TrajectoryPoint, frac: f64, t: f64) -> TrajectoryPoint {
+    let lerp = |x: f64, y: f64| x + (y - x) * frac;
+    TrajectoryPoint {
+        x: lerp(a.x, b.x),
+        y: lerp(a.y, b.y),
+        z: lerp(a.z, b.z),
+        vx: lerp(a.vx, b.vx),
+        vy: lerp(a.vy, b.vy),
+        vz: lerp(a.vz, b.vz),
+        t,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn point(t: f64, x: f64, z: f64) -> TrajectoryPoint {
+        TrajectoryPoint {
+            x,
+            y: 0.0,
+            z,
+            vx: 1.0,
+            vy: 0.0,
+            vz: -1.0,
+            t,
+        }
+    }
+
+    #[test]
+    fn down_sample_interpolates_between_native_steps() {
+        // Native trajectory at 500 Hz (dt=0.002), with x linear in t for a
+        // simple invariant to check.
+        let mut points = Vec::new();
+        for k in 0..=500 {
+            let t = k as f64 * 0.002;
+            points.push(point(t, t * 100.0, 1.0 - t));
+        }
+        let trajectory = Trajectory { points };
+
+        let down = down_sample_trajectory(&trajectory, 60.0);
+        // Roughly hang_time * 60 + landing point
+        assert!(down.len() >= 60);
+        // First sample at t=0
+        assert!((down[0].t - 0.0).abs() < 1e-12);
+        // Interior samples spaced 1/60
+        for w in down.windows(2).take(down.len() - 2) {
+            assert!((w[1].t - w[0].t - 1.0 / 60.0).abs() < 1e-9);
+        }
+        // Linear x = 100 * t check on an interior sample
+        let mid = &down[10];
+        assert!((mid.x - mid.t * 100.0).abs() < 1e-9);
+        // Final point preserves the integrator's last frame exactly.
+        let last_native = trajectory.points.last().unwrap();
+        let last_out = down.last().unwrap();
+        assert_eq!(last_out.t, last_native.t);
+        assert_eq!(last_out.x, last_native.x);
+    }
+
+    #[test]
+    fn down_sample_returns_native_when_rate_at_or_above_native() {
+        let mut points = Vec::new();
+        for k in 0..=10 {
+            let t = k as f64 * 0.002;
+            points.push(point(t, t, 0.0));
+        }
+        let trajectory = Trajectory {
+            points: points.clone(),
+        };
+        for rate in [500.0_f64, 1000.0_f64, f64::INFINITY] {
+            let out = down_sample_trajectory(&trajectory, rate);
+            assert_eq!(out.len(), points.len(), "rate {} should pass through", rate);
+        }
+    }
+
+    #[test]
+    fn down_sample_handles_non_positive_rate_as_passthrough() {
+        let trajectory = Trajectory {
+            points: vec![point(0.0, 0.0, 0.0), point(0.002, 1.0, 0.0)],
+        };
+        for rate in [0.0_f64, -10.0_f64, f64::NAN] {
+            let out = down_sample_trajectory(&trajectory, rate);
+            assert_eq!(out.len(), 2, "rate {} should pass through", rate);
+        }
+    }
+
+    #[test]
+    fn down_sample_empty_trajectory_returns_empty() {
+        let trajectory = Trajectory { points: vec![] };
+        assert!(down_sample_trajectory(&trajectory, 60.0).is_empty());
+    }
 }

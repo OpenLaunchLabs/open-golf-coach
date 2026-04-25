@@ -88,6 +88,89 @@ The library adds derived values to the input:
 }
 ```
 
+### Trajectory Output
+
+You can opt in to receive the simulated ball trajectory — useful for
+animating shots in Unity, Unreal, Three.js, or any other engine. The library
+already simulates the flight at 500 Hz internally; this just exposes the
+points so you don't have to re-implement the physics.
+
+```json
+{
+  "ball_speed_meters_per_second": 70.0,
+  "vertical_launch_angle_degrees": 12.5,
+  "total_spin_rpm": 2800.0,
+  "spin_axis_degrees": 15.0,
+  "trajectory_enabled": true,
+  "trajectory_output_framerate_hz": 60
+}
+```
+
+Output adds a `trajectory` block under `open_golf_coach`:
+
+```json
+"open_golf_coach": {
+  "carry_distance_meters": 185.4,
+  "...": "...",
+  "trajectory": {
+    "sample_rate_hz": 60,
+    "points": [
+      {"t": 0.0,    "x": 0.0,  "y": 0.0,   "z": 0.0,  "vx": 68.6, "vy": -2.4, "vz": 15.2},
+      {"t": 0.0167, "x": 1.14, "y": -0.04, "z": 0.25, "vx": 68.3, "vy": -2.4, "vz": 14.9}
+    ]
+  }
+}
+```
+
+`trajectory_output_framerate_hz` is clamped to `(0, 500]`. Omit it (or pass
+`0`/negative) and you get the full native 500 Hz simulation; pass `60` for a
+typical animation frame budget. The first point is at `t = 0` and the last
+point is the landing frame (the integrator's final state, never aliased
+away by sampling).
+
+#### Coordinate frame
+
+Trajectory points are in OpenGolfCoach's native frame:
+
+- `+X` — forward (along the target line)
+- `+Y` — right
+- `+Z` — up
+- Origin `(0, 0, 0)` is the ball's starting position
+- Left-handed (matches Unreal Engine)
+
+| Engine | Conversion from `(x, y, z)` |
+|---|---|
+| Unreal | identical — no transform |
+| Unity | `new Vector3(p.y, p.z, p.x)` (axis swap, no flips) |
+| Three.js / glTF / WebGL | `new THREE.Vector3(p.y, p.z, -p.x)` (swap + one negation) |
+| Right-handed Z-up (Blender, scientific) | flip Y sign |
+
+#### Using from Rust
+
+Rust callers can skip JSON entirely with the typed API:
+
+```rust
+use opengolfcoach::{calculate_derived_values_from_input, InputData};
+
+let input = InputData {
+    ball_speed_meters_per_second: Some(70.0),
+    vertical_launch_angle_degrees: Some(12.5),
+    total_spin_rpm: Some(2800.0),
+    spin_axis_degrees: Some(15.0),
+    trajectory_enabled: Some(true),
+    trajectory_output_framerate_hz: Some(60.0),
+    ..Default::default()
+};
+let derived = calculate_derived_values_from_input(&input);
+let trajectory = derived.trajectory.expect("requested above");
+for p in &trajectory.points {
+    // animate using p.x, p.y, p.z, p.t
+}
+```
+
+`calculate_trajectory` is also re-exported for callers who want the raw
+simulator without the spin / classification derivations.
+
 ### Shot Classification
 
 Shots are classified using deterministic rules based on horizontal launch angle (HLA) and spin axis:
