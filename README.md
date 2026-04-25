@@ -73,9 +73,9 @@ The library adds derived values to the input:
   "club_path_degrees":           { "right_handed": -4.6, "left_handed":  4.6 },
   "club_face_to_target_degrees": { "right_handed": -0.4, "left_handed":  0.4 },
   "club_face_to_path_degrees":   { "right_handed":  4.2, "left_handed": -4.2 },
-  "shot_name":                   { "right_handed": "Straight", "left_handed": "Straight" },
-  "shot_rank":                   { "right_handed": "S",        "left_handed": "S" },
-  "shot_color_rgb":              { "right_handed": "0x00B3FF", "left_handed": "0x00B3FF" },
+  "shot_name":                   { "right_handed": "Straight Slice", "left_handed": "Straight Hook" },
+  "shot_rank":                   { "right_handed": "D",        "left_handed": "D" },
+  "shot_color_rgb":              { "right_handed": "0xFF7043", "left_handed": "0xFF7043" },
   "us_customary_units": {
     "ball_speed_mph": 156.6,
     "club_speed_mph": 106.1,
